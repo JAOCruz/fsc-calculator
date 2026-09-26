@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { fmtRD, fmtRDshort, fmtPct, fmtFactor, DEFAULTS, DEFAULT_AVANCE, DEFAULT_COBROS, makeDefaultCobros, normalizeCobros, iterateFSC, EXAMPLES } from './calc.js';
-import { Stat, Def, Step } from './ui.jsx';
+import { fmtPct, fmtFactor, DEFAULTS, DEFAULT_AVANCE, DEFAULT_COBROS, makeDefaultCobros, normalizeCobros, iterateFSC, EXAMPLES } from './calc.js';
+import { Stat, Def, Step, CurrencyToggle } from './ui.jsx';
+import { PrefsProvider, useT, useMoney, localeFor, translate } from './prefs.jsx';
 import { WaterfallFSC, CashFlowChart, Convergence, FSCGauge } from './viz.jsx';
 import {
   StepProyecto, StepCostos, StepTasas, StepFiscal,
@@ -20,8 +21,28 @@ const STEP_NAV = [
   { id: "resultado",  num: "10", label: "Resultado completo" },
 ];
 
+const readPref = (key, allowed, fallback) => {
+  try {
+    const v = localStorage.getItem(key);
+    if (allowed.includes(v)) return v;
+  } catch (e) {}
+  return fallback;
+};
+
 // --- Top-level App ---
 export default function App() {
+  const [lang, setLang] = useState(() => readPref("fsc-lang", ["es", "en"], "es"));
+  const [currency, setCurrency] = useState(() => readPref("fsc-currency", ["DOP", "USD"], "DOP"));
+  useEffect(() => {
+    try { localStorage.setItem("fsc-lang", lang); } catch (e) {}
+    document.documentElement.lang = lang;
+    document.title = translate(lang, "Factor de Sobrecosto · Calculadora guiada");
+  }, [lang]);
+  useEffect(() => {
+    try { localStorage.setItem("fsc-currency", currency); } catch (e) {}
+  }, [currency]);
+  const t = useCallback((s, vars) => translate(lang, s, vars), [lang]);
+
   const [params, setParams] = useState(() => {
     try {
       const saved = localStorage.getItem("fsc-current-params");
@@ -53,7 +74,7 @@ export default function App() {
     return DEFAULT_COBROS;
   });
   const [projectName, setProjectName] = useState(() => {
-    return localStorage.getItem("fsc-project-name") || "Residencial Las Praderas";
+    try { return localStorage.getItem("fsc-project-name") || "Residencial Las Praderas"; } catch (e) { return "Residencial Las Praderas"; }
   });
   const [activeStep, setActiveStep] = useState("proyecto");
   const [scenarioMenuOpen, setScenarioMenuOpen] = useState(false);
@@ -79,17 +100,17 @@ export default function App() {
   const handleImport = useCallback(({ projectName: name, params: importedParams, avance: importedAvance, cobros: importedCobros }) => {
     const mergedParams = { ...DEFAULTS, ...importedParams };
     const normCobros = normalizeCobros(importedCobros || DEFAULT_COBROS, mergedParams.ANTICIPO);
-    setProjectName(name || "Proyecto importado");
+    setProjectName(name || t("Proyecto importado"));
     setParams(mergedParams);
     setAvance(importedAvance);
     setCobros(normCobros);
     try {
-      localStorage.setItem("fsc-project-name", name || "Proyecto importado");
+      localStorage.setItem("fsc-project-name", name || t("Proyecto importado"));
       localStorage.setItem("fsc-current-params", JSON.stringify(mergedParams));
       localStorage.setItem("fsc-current-avance", JSON.stringify(importedAvance));
       localStorage.setItem("fsc-current-cobros", JSON.stringify(normCobros));
     } catch (e) {}
-  }, []);
+  }, [t]);
 
   // Persist
   useEffect(() => {
@@ -223,13 +244,13 @@ export default function App() {
     setParams(ex.params);
     setAvance(ex.avance);
     setCobros(ex.cobros || makeDefaultCobros(ex.params.DURACION, ex.params.ANTICIPO));
-    setProjectName(ex.name);
+    setProjectName(t(ex.name));
     setScenarioMenuOpen(false);
     document.getElementById("proyecto")?.scrollIntoView({ behavior: "smooth" });
   };
 
   const saveScenario = () => {
-    const name = prompt("Nombre del escenario:", projectName);
+    const name = prompt(t("Nombre del escenario:"), projectName);
     if (!name) return;
     const scenario = {
       name,
@@ -262,16 +283,21 @@ export default function App() {
     setSavedScenarios((s) => s.filter((_, i) => i !== idx));
   };
   const resetAll = () => {
-    if (!confirm("¿Restablecer todos los parámetros a los valores por defecto?")) return;
+    if (!confirm(t("¿Restablecer todos los parámetros a los valores por defecto?"))) return;
     setParams(DEFAULTS);
     setAvance(DEFAULT_AVANCE);
     setCobros(DEFAULT_COBROS);
-    setProjectName("Proyecto Nuevo");
+    setProjectName(t("Proyecto Nuevo"));
   };
 
   return (
+    <PrefsProvider lang={lang} currency={currency} rate={params.TASA_CAMBIO}>
     <div className="shell">
       <Header
+        lang={lang}
+        setLang={setLang}
+        currency={currency}
+        setCurrency={setCurrency}
         projectName={projectName}
         setProjectName={setProjectName}
         final={final}
@@ -314,29 +340,51 @@ export default function App() {
           projectName={projectName} onImport={handleImport} />
       </div>
     </div>
+    </PrefsProvider>
   );
 }
 
 // --- Header bar ---
-function Header({ projectName, setProjectName, final, scenarioMenuOpen, setScenarioMenuOpen,
+function Header({ lang, setLang, currency, setCurrency, projectName, setProjectName, final, scenarioMenuOpen, setScenarioMenuOpen,
   savedScenarios, autoSaved, loadExample, saveScenario, loadScenario, loadAutoSaved, deleteScenario, resetAll }) {
+  const t = useT();
+  const { fmtShort } = useMoney();
   const autoList = Object.values(autoSaved || {}).sort((a, b) => b.timestamp - a.timestamp);
   return (
     <header className="header-bar">
       <div className="brand">
         <div className="brand-mark">
-          Factor de <em>Sobrecosto</em>
+          <span dangerouslySetInnerHTML={{ __html: t("Factor de <em>Sobrecosto</em>") }} />
         </div>
-        <div className="brand-sub">RD · calculadora guiada</div>
+        <div className="brand-sub">{t("RD · calculadora guiada")}</div>
       </div>
       <div className="header-actions" style={{ position: "relative" }}>
-        <a href="docs.html" className="back-link" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--rule-strong)", background: "var(--card)", color: "var(--ink)", fontSize: 13, textDecoration: "none" }}>
-          <i className="fa-solid fa-book-open"></i> Docs
+        <div role="group" aria-label={t("Idioma")} title={t("Idioma")} style={{
+          display: "inline-flex", padding: 2, gap: 2,
+          background: "var(--bg-paper)", border: "1px solid var(--rule)", borderRadius: 6,
+        }}>
+          {["es", "en"].map((l) => (
+            <button key={l} type="button" onClick={() => setLang(l)} aria-pressed={lang === l}
+              style={{
+                padding: "2px 8px", fontSize: 11, fontFamily: "var(--font-mono)", textTransform: "uppercase",
+                fontWeight: lang === l ? 500 : 400,
+                background: lang === l ? "var(--card)" : "transparent",
+                border: lang === l ? "1px solid var(--rule-strong)" : "1px solid transparent",
+                color: lang === l ? "var(--ink)" : "var(--ink-3)",
+                borderRadius: 4, cursor: "pointer",
+              }}>{l}</button>
+          ))}
+        </div>
+        <span title={t("Moneda en que se muestran todos los montos")}>
+          <CurrencyToggle value={currency} onChange={setCurrency} />
+        </span>
+        <a href={lang === "en" ? "docs.html?lang=en" : "docs.html"} className="back-link" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--rule-strong)", background: "var(--card)", color: "var(--ink)", fontSize: 13, textDecoration: "none" }}>
+          <i className="fa-solid fa-book-open"></i> {t("Docs")}
         </a>
-        <button className="ghost" onClick={resetAll}><i className="fa-solid fa-rotate-left" style={{marginRight:6}}></i>Restablecer</button>
-        <button className="ghost" onClick={saveScenario} disabled={!final}><i className="fa-solid fa-bookmark" style={{marginRight:6}}></i>Guardar</button>
+        <button className="ghost" onClick={resetAll}><i className="fa-solid fa-rotate-left" style={{marginRight:6}}></i>{t("Restablecer")}</button>
+        <button className="ghost" onClick={saveScenario} disabled={!final}><i className="fa-solid fa-bookmark" style={{marginRight:6}}></i>{t("Guardar")}</button>
         <button onClick={() => setScenarioMenuOpen((v) => !v)}>
-          <i className="fa-solid fa-layer-group" style={{marginRight:6}}></i>Escenarios {scenarioMenuOpen ? "▴" : "▾"}
+          <i className="fa-solid fa-layer-group" style={{marginRight:6}}></i>{t("Escenarios")} {scenarioMenuOpen ? "▴" : "▾"}
         </button>
         {scenarioMenuOpen && (
           <div style={{
@@ -347,7 +395,7 @@ function Header({ projectName, setProjectName, final, scenarioMenuOpen, setScena
           }}>
             <div style={{ padding: "10px 14px", fontSize: 11, letterSpacing: "0.12em",
               textTransform: "uppercase", color: "var(--ink-3)", borderBottom: "1px solid var(--rule)" }}>
-              Ejemplos precargados
+              {t("Ejemplos precargados")}
             </div>
             {Object.entries(EXAMPLES).map(([key, ex]) => (
               <button key={key}
@@ -359,9 +407,9 @@ function Header({ projectName, setProjectName, final, scenarioMenuOpen, setScena
                   display: "flex", justifyContent: "space-between", alignItems: "center",
                 }}>
                 <span>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{ex.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{t(ex.name)}</div>
                   <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 1 }}>
-                    CD = {fmtRDshort(ex.params.CD)} · {ex.params.DURACION} meses · {ex.params.TIPO_OBRA_CODIA}
+                    CD = {fmtShort(ex.params.CD)} · {ex.params.DURACION} {t("meses")} · {t(ex.params.TIPO_OBRA_CODIA)}
                   </div>
                 </span>
                 <span style={{ color: "var(--ink-3)", fontSize: 12 }}><i className="fa-solid fa-arrow-right"></i></span>
@@ -373,7 +421,7 @@ function Header({ projectName, setProjectName, final, scenarioMenuOpen, setScena
                   textTransform: "uppercase", color: "var(--ink-3)",
                   borderBottom: "1px solid var(--rule)", borderTop: "1px solid var(--rule)",
                   background: "var(--bg-paper)" }}>
-                  <i className="fa-solid fa-folder-open" style={{marginRight:6}}></i>Mis escenarios guardados
+                  <i className="fa-solid fa-folder-open" style={{marginRight:6}}></i>{t("Mis escenarios guardados")}
                 </div>
                 {savedScenarios.map((sc, i) => (
                   <div key={i} style={{
@@ -387,10 +435,10 @@ function Header({ projectName, setProjectName, final, scenarioMenuOpen, setScena
                     }}>
                       <div style={{ fontSize: 13, fontWeight: 500 }}>{sc.name}</div>
                       <div style={{ fontSize: 11, color: "var(--ink-3)" }}>
-                        FSC {sc.fsc ? fmtFactor(sc.fsc) : "—"} · PTV {sc.ptv ? fmtRDshort(sc.ptv) : "—"}
+                        FSC {sc.fsc ? fmtFactor(sc.fsc) : "—"} · PTV {sc.ptv ? fmtShort(sc.ptv) : "—"}
                       </div>
                     </button>
-                    <button onClick={() => deleteScenario(i)} className="ghost" style={{ fontSize: 11, padding: "4px 8px" }} title="Eliminar">
+                    <button onClick={() => deleteScenario(i)} className="ghost" style={{ fontSize: 11, padding: "4px 8px" }} title={t("Eliminar")}>
                       <i className="fa-solid fa-trash-can"></i>
                     </button>
                   </div>
@@ -403,7 +451,7 @@ function Header({ projectName, setProjectName, final, scenarioMenuOpen, setScena
                   textTransform: "uppercase", color: "var(--ink-3)",
                   borderBottom: "1px solid var(--rule)", borderTop: "1px solid var(--rule)",
                   background: "var(--bg-paper)" }}>
-                  <i className="fa-solid fa-clock-rotate-left" style={{marginRight:6}}></i>Autoguardados
+                  <i className="fa-solid fa-clock-rotate-left" style={{marginRight:6}}></i>{t("Autoguardados")}
                 </div>
                 {autoList.map((entry) => (
                   <div key={entry.name} style={{
@@ -417,7 +465,7 @@ function Header({ projectName, setProjectName, final, scenarioMenuOpen, setScena
                     }}>
                       <div style={{ fontSize: 13, fontWeight: 500 }}>{entry.name}</div>
                       <div style={{ fontSize: 11, color: "var(--ink-3)" }}>
-                        {new Date(entry.timestamp).toLocaleString("es-DO", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+                        {new Date(entry.timestamp).toLocaleString(localeFor(lang), { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
                       </div>
                     </button>
                   </div>
@@ -433,17 +481,18 @@ function Header({ projectName, setProjectName, final, scenarioMenuOpen, setScena
 
 // --- Nav rail ---
 function NavRail({ active }) {
+  const t = useT();
   return (
     <nav style={{ position: "sticky", top: 16 }}>
       <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-4)", marginBottom: 12 }}>
-        <i className="fa-solid fa-list-ul" style={{marginRight:6}}></i>Sumario
+        <i className="fa-solid fa-list-ul" style={{marginRight:6}}></i>{t("Sumario")}
       </div>
       <ul className="rail">
         {STEP_NAV.map((s) => (
           <li key={s.id}>
             <a href={"#" + s.id} className={active === s.id ? "active" : ""}>
               <span className="rail-num">{s.num}</span>
-              <span>{s.label}</span>
+              <span>{t(s.label)}</span>
             </a>
           </li>
         ))}
@@ -498,7 +547,7 @@ function exportCase({ projectName, params, avance, cobros, final, iterations, fs
   URL.revokeObjectURL(url);
 }
 
-function importCase(e, onImport) {
+function importCase(e, onImport, t) {
   const file = e.target.files?.[0];
   if (!file) return;
   const reader = new FileReader();
@@ -506,7 +555,7 @@ function importCase(e, onImport) {
     try {
       const data = JSON.parse(event.target.result);
       if (!data.params || !data.avance) {
-        alert("Archivo inválido: no contiene params o avance.");
+        alert(t("Archivo inválido: no contiene params o avance."));
         return;
       }
       onImport({
@@ -516,7 +565,7 @@ function importCase(e, onImport) {
         cobros: data.cobros,
       });
     } catch (err) {
-      alert("Error al leer el archivo: " + err.message);
+      alert(t("Error al leer el archivo: ") + err.message);
     }
   };
   reader.readAsText(file);
@@ -524,6 +573,8 @@ function importCase(e, onImport) {
 }
 
 function ResultsDock({ final, iterations, fscFinal, params, avance, cobros, avanceTotal, cobrosTotal, codiaAplicado, projectName, onImport }) {
+  const t = useT();
+  const { fmt, fmtShort } = useMoney();
   const ingresosPct = cobrosTotal + params.ANTICIPO; // anticipo (M1) + cubicaciones netas
   const totalOk = Math.abs(avanceTotal - 1) < 0.001 && Math.abs(ingresosPct - 1) < 0.001;
   const [view, setView] = useState("mercado");
@@ -551,12 +602,12 @@ function ResultsDock({ final, iterations, fscFinal, params, avance, cobros, avan
       <div className="dock-status" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span className={"dot " + (totalOk ? "" : "bad")} />
-          {totalOk ? <><i className="fa-solid fa-calculator" style={{marginRight:6}}></i>4 iteraciones + final</> : <><i className="fa-solid fa-triangle-exclamation" style={{marginRight:6}}></i>Egresos {Math.abs(avanceTotal * 100).toFixed(0)}% · Ingresos {Math.abs(ingresosPct * 100).toFixed(0)}%</>}
+          {totalOk ? <><i className="fa-solid fa-calculator" style={{marginRight:6}}></i>{t("4 iteraciones + final")}</> : <><i className="fa-solid fa-triangle-exclamation" style={{marginRight:6}}></i>{t("Egresos {a}% · Ingresos {b}%", { a: Math.abs(avanceTotal * 100).toFixed(0), b: Math.abs(ingresosPct * 100).toFixed(0) })}</>}
         </div>
         <button
           className="ghost"
           onClick={() => setCollapsed((v) => !v)}
-          title={collapsed ? "Expandir" : "Minimizar"}
+          title={collapsed ? t("Expandir") : t("Minimizar")}
           style={{ padding: "2px 6px", fontSize: 14 }}
         >
           <i className={collapsed ? "fa-solid fa-chevron-down" : "fa-solid fa-chevron-up"}></i>
@@ -572,8 +623,8 @@ function ResultsDock({ final, iterations, fscFinal, params, avance, cobros, avan
         ) : (
           <div style={{ padding: "32px 8px", textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>
             <div style={{ fontFamily: "var(--font-serif)", fontSize: 22, marginBottom: 6, color: "var(--ink-2)" }}>—</div>
-            Egresos {Math.abs(avanceTotal * 100).toFixed(0)}% · Ingresos {Math.abs(ingresosPct * 100).toFixed(0)}%<br/>
-            <span style={{ fontSize: 11 }}>egresos deben sumar 100% · ingresos (anticipo + cubicaciones) deben sumar 100%</span>
+            {t("Egresos {a}% · Ingresos {b}%", { a: Math.abs(avanceTotal * 100).toFixed(0), b: Math.abs(ingresosPct * 100).toFixed(0) })}<br/>
+            <span style={{ fontSize: 11 }}>{t("egresos deben sumar 100% · ingresos (anticipo + cubicaciones) deben sumar 100%")}</span>
           </div>
         )}
       </div>
@@ -589,10 +640,10 @@ function ResultsDock({ final, iterations, fscFinal, params, avance, cobros, avan
             marginBottom: 10,
           }}>
             <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--accent-ink)", marginBottom: 4 }}>
-              Precio Técnico de Venta
+              {t("Precio Técnico de Venta")}
             </div>
             <div className="num" style={{ fontFamily: "var(--font-serif)", fontSize: 26, color: "var(--accent-ink)", lineHeight: 1.1 }}>
-              {fmtRD(final.PTV)}
+              {fmt(final.PTV)}
             </div>
             <div style={{ fontSize: 11, color: "var(--accent-ink)", opacity: 0.75, marginTop: 4 }}>
               CD × {fmtFactor(final.FSC)}
@@ -600,10 +651,10 @@ function ResultsDock({ final, iterations, fscFinal, params, avance, cobros, avan
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
-            <Stat label="Utilidad UC" value={fmtPct(final.UC, 2)} mono />
-            <Stat label="Financiam. F" value={fmtPct(final.F, 3)} mono />
-            <Stat label="Revolvencia" value={final.RC.toFixed(2) + "×"} mono />
-            <Stat label="IMO" value={fmtRDshort(final.IMO)} mono />
+            <Stat label={t("Utilidad UC")} value={fmtPct(final.UC, 2)} mono />
+            <Stat label={t("Financiam. F")} value={fmtPct(final.F, 3)} mono />
+            <Stat label={t("Revolvencia")} value={final.RC.toFixed(2) + "×"} mono />
+            <Stat label="IMO" value={fmtShort(final.IMO)} mono />
           </div>
         </div>
       )}
@@ -620,21 +671,21 @@ function ResultsDock({ final, iterations, fscFinal, params, avance, cobros, avan
               flex: 1, fontSize: 11, padding: "6px 8px", borderRadius: 6,
               border: "1px solid var(--rule)", background: "var(--bg)", color: "var(--ink-2)", cursor: "pointer",
             }}>
-            <i className="fa-solid fa-download" style={{ marginRight: 4 }}></i>Exportar caso
+            <i className="fa-solid fa-download" style={{ marginRight: 4 }}></i>{t("Exportar caso")}
           </button>
           <button onClick={() => document.getElementById('fsc-import-file').click()}
             style={{
               flex: 1, fontSize: 11, padding: "6px 8px", borderRadius: 6,
               border: "1px solid var(--rule)", background: "var(--bg)", color: "var(--ink-2)", cursor: "pointer",
             }}>
-            <i className="fa-solid fa-upload" style={{ marginRight: 4 }}></i>Importar caso
+            <i className="fa-solid fa-upload" style={{ marginRight: 4 }}></i>{t("Importar caso")}
           </button>
           <input
             id="fsc-import-file"
             type="file"
             accept=".json"
             style={{ display: "none" }}
-            onChange={(e) => importCase(e, onImport)}
+            onChange={(e) => importCase(e, onImport, t)}
           />
         </div>
       )}
@@ -648,11 +699,11 @@ function ResultsDock({ final, iterations, fscFinal, params, avance, cobros, avan
             background: "var(--bg-paper)",
           }}>
             {[
-              { id: "mercado", label: "Mercado", icon: "fa-scale-balanced" },
-              { id: "resumen", label: "Resumen", icon: "fa-chart-pie" },
-              { id: "waterfall", label: "Cascada", icon: "fa-chart-simple" },
-              { id: "flujo", label: "Flujo", icon: "fa-money-bill-transfer" },
-              { id: "iter", label: "Iter.", icon: "fa-arrows-rotate" },
+              { id: "mercado", label: t("Mercado"), icon: "fa-scale-balanced" },
+              { id: "resumen", label: t("Resumen"), icon: "fa-chart-pie" },
+              { id: "waterfall", label: t("Cascada"), icon: "fa-chart-simple" },
+              { id: "flujo", label: t("Flujo"), icon: "fa-money-bill-transfer" },
+              { id: "iter", label: t("Iter."), icon: "fa-arrows-rotate" },
             ].map((t) => (
               <button key={t.id} onClick={() => setView(t.id)}
                 style={{
@@ -688,19 +739,21 @@ function ResultsDock({ final, iterations, fscFinal, params, avance, cobros, avan
 }
 
 function DockMercado({ PTV, PCM, DM, verdict }) {
+  const t = useT();
+  const { fmt } = useMoney();
   const verdictStyle = {
-    cerca: { bg: "var(--good-tint)", color: "oklch(0.35 0.11 155)", icon: "fa-check", text: "PCM alineado con PTV" },
-    encima: { bg: "var(--warn-tint)", color: "oklch(0.40 0.15 60)", icon: "fa-arrow-trend-up", text: "PCM por encima del PTV" },
-    debajo: { bg: "var(--bad-tint)", color: "oklch(0.35 0.18 25)", icon: "fa-arrow-trend-down", text: "PCM por debajo del PTV" },
+    cerca: { bg: "var(--good-tint)", color: "oklch(0.35 0.11 155)", icon: "fa-check", text: t("PCM alineado con PTV") },
+    encima: { bg: "var(--warn-tint)", color: "oklch(0.40 0.15 60)", icon: "fa-arrow-trend-up", text: t("PCM por encima del PTV") },
+    debajo: { bg: "var(--bad-tint)", color: "oklch(0.35 0.18 25)", icon: "fa-arrow-trend-down", text: t("PCM por debajo del PTV") },
   };
   return (
     <div>
       <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 10 }}>
-        Comparación de precios
+        {t("Comparación de precios")}
       </div>
-      <Def k="PTV (técnico)" v={fmtRD(PTV)} />
-      <Def k="PCM (mercado)" v={fmtRD(PCM)} />
-      <Def k="DM = PCM − PTV" v={(DM >= 0 ? "+" : "") + fmtRD(DM)} accent={DM !== 0} />
+      <Def k={t("PTV (técnico)")} v={fmt(PTV)} />
+      <Def k={t("PCM (mercado)")} v={fmt(PCM)} />
+      <Def k="DM = PCM − PTV" v={(DM >= 0 ? "+" : "") + fmt(DM)} accent={DM !== 0} />
       {verdict && (
         <div style={{
           marginTop: 12, padding: "10px 12px", borderRadius: 8,
@@ -708,12 +761,12 @@ function DockMercado({ PTV, PCM, DM, verdict }) {
           fontSize: 12, display: "flex", alignItems: "center", gap: 8,
         }}>
           <i className={"fa-solid " + verdictStyle[verdict].icon}></i>
-          <span><strong>Análisis:</strong> {verdictStyle[verdict].text}</span>
+          <span><strong>{t("Análisis:")}</strong> {verdictStyle[verdict].text}</span>
         </div>
       )}
       {!verdict && (
         <div style={{ marginTop: 10, fontSize: 12, color: "var(--ink-3)", lineHeight: 1.5 }}>
-          Ingresa el PCM en el paso 08 para ver el análisis de razonabilidad.
+          {t("Ingresa el PCM en el paso 09 para ver el análisis de razonabilidad.")}
         </div>
       )}
     </div>
@@ -721,18 +774,19 @@ function DockMercado({ PTV, PCM, DM, verdict }) {
 }
 
 function DockResumen({ final, params, codiaAplicado }) {
+  const t = useT();
   return (
     <div>
       <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 8 }}>
-        Composición del FSC
+        {t("Composición del FSC")}
       </div>
-      <Def k="Base CD" v="1.000000" />
-      <Def k={"+ Operación CO (" + fmtPct(params.CO) + ")"} v={"+" + (final.FIO - 1).toFixed(4)} />
-      <Def k={"+ Campo CC (" + fmtPct(params.CC) + ")"} v={"+" + (final.FIC - final.FIO).toFixed(4)} />
-      <Def k={"+ Imprevistos CI (" + fmtPct(params.CI) + ")"} v={"+" + (final.FII - final.FIC).toFixed(4)} />
-      <Def k={"+ Financiam. F (" + fmtPct(final.F, 3) + ")"} v={"+" + (final.FIF - final.FII).toFixed(4)} />
+      <Def k={t("Base CD")} v="1.000000" />
+      <Def k={"+ " + t("Operación") + " CO (" + fmtPct(params.CO) + ")"} v={"+" + (final.FIO - 1).toFixed(4)} />
+      <Def k={"+ " + t("Campo") + " CC (" + fmtPct(params.CC) + ")"} v={"+" + (final.FIC - final.FIO).toFixed(4)} />
+      <Def k={"+ " + t("Imprevistos") + " CI (" + fmtPct(params.CI) + ")"} v={"+" + (final.FII - final.FIC).toFixed(4)} />
+      <Def k={"+ " + t("Financiam. F") + " (" + fmtPct(final.F, 3) + ")"} v={"+" + (final.FIF - final.FII).toFixed(4)} />
       <Def k={"+ CODIA (" + fmtPct(codiaAplicado, 3) + ")"} v={"+" + (final.FICOD - final.FIF).toFixed(4)} />
-      <Def k={"+ Pensiones FON (" + fmtPct(params.FON) + ")"} v={"+" + (final.FIFON - final.FICOD).toFixed(4)} />
+      <Def k={"+ " + t("Pensiones") + " FON (" + fmtPct(params.FON) + ")"} v={"+" + (final.FIFON - final.FICOD).toFixed(4)} />
       <Def k={"× (1 + UC=" + fmtPct(final.UC) + ")"} v={"+" + (final.FIU - final.FIFON).toFixed(4)} />
       <Def k="= FSC" v={fmtFactor(final.FSC)} accent />
     </div>
@@ -740,10 +794,11 @@ function DockResumen({ final, params, codiaAplicado }) {
 }
 
 function DockIterations({ iterations, fscFinal }) {
+  const t = useT();
   return (
     <div>
       <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 10 }}>
-        Convergencia
+        {t("Convergencia")}
       </div>
       <Convergence iterations={iterations} />
       <div style={{ marginTop: 14 }}>
@@ -754,7 +809,7 @@ function DockIterations({ iterations, fscFinal }) {
             borderBottom: "1px dotted var(--rule)",
           }}>
             <span style={{ color: "var(--ink-3)", fontFamily: "var(--font-mono)" }}>
-              iter. {it.iter} · input {fmtFactor(it.fscInput)}
+              {t("iter.")} {it.iter} · input {fmtFactor(it.fscInput)}
             </span>
             <span className="num" style={{ color: "var(--ink)" }}>
               {fmtFactor(it.FSC)}
@@ -767,7 +822,7 @@ function DockIterations({ iterations, fscFinal }) {
           borderTop: "2px solid var(--rule)",
         }}>
           <span style={{ color: "var(--accent-ink)", fontFamily: "var(--font-mono)", fontWeight: 500 }}>
-            FSC final = (iter. 3 + iter. 4) / 2
+            {t("FSC final = (iter. 3 + iter. 4) / 2")}
           </span>
           <span className="num" style={{ color: "var(--accent)", fontWeight: 600 }}>
             {fmtFactor(fscFinal)}
@@ -780,35 +835,37 @@ function DockIterations({ iterations, fscFinal }) {
 
 // --- Monthly cash flow table ---
 function CashFlowTable({ final, params }) {
+  const t = useT();
+  const { fmt } = useMoney();
   const cf = final.cashFlow;
-  const meses = Array.from({ length: cf.SING.length }, (_, i) => `M${i + 1}`);
+  const meses = Array.from({ length: cf.SING.length }, (_, i) => `${t("M")}${i + 1}`);
   // Ingresos cobrados del cliente = anticipo + cubicaciones − amortización del anticipo.
   // Su total es exactamente el PTV; los descuentos se muestran como línea separada.
   const ING = cf.ANT.map((a, i) => a + cf.COB[i] + (cf.AMO ? cf.AMO[i] : 0));
   const DES = cf.DES || cf.SING.map(() => 0);
   const rows = [
-    { key: "ing", label: "Ingresos (anticipo + cubicaciones)", data: ING, fmt: (v) => fmtRD(v), good: true },
-    { key: "des", label: "Descuentos sobre cubicaciones", data: DES, fmt: (v) => fmtRD(v), sign: true, dim: true },
-    { key: "egr", label: "Egresos (CD + CO + CC + CI)", data: cf.SEGRfix, fmt: (v) => fmtRD(v), bad: true },
-    { key: "dif", label: "Diferencia", data: cf.DIFP, fmt: (v) => fmtRD(v), sign: true },
-    { key: "dfa", label: "Dif. acumulada", data: cf.DIFA, fmt: (v) => fmtRD(v), sign: true, bold: true, totalIsLast: true },
-    { key: "pas", label: "Interés pasivo (ganancia)", data: cf.FPAS, fmt: (v) => fmtRD(v), good: true, dim: true },
-    { key: "act", label: "Interés activo (pago)", data: cf.FACT, fmt: (v) => fmtRD(v), bad: true, dim: true },
-    { key: "fin", label: "Financiamiento", data: cf.FPAR, fmt: (v) => fmtRD(v), sign: true, dim: true },
+    { key: "ing", label: t("Ingresos (anticipo + cubicaciones)"), data: ING, fmt: (v) => fmt(v), good: true },
+    { key: "des", label: t("Descuentos sobre cubicaciones"), data: DES, fmt: (v) => fmt(v), sign: true, dim: true },
+    { key: "egr", label: t("Egresos (CD + CO + CC + CI)"), data: cf.SEGRfix, fmt: (v) => fmt(v), bad: true },
+    { key: "dif", label: t("Diferencia"), data: cf.DIFP, fmt: (v) => fmt(v), sign: true },
+    { key: "dfa", label: t("Dif. acumulada"), data: cf.DIFA, fmt: (v) => fmt(v), sign: true, bold: true, totalIsLast: true },
+    { key: "pas", label: t("Interés pasivo (ganancia)"), data: cf.FPAS, fmt: (v) => fmt(v), good: true, dim: true },
+    { key: "act", label: t("Interés activo (pago)"), data: cf.FACT, fmt: (v) => fmt(v), bad: true, dim: true },
+    { key: "fin", label: t("Financiamiento"), data: cf.FPAR, fmt: (v) => fmt(v), sign: true, dim: true },
   ];
 
   return (
     <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", minWidth: 720 }}>
       <thead>
         <tr style={{ borderBottom: "1px solid var(--ink-2)" }}>
-          <th style={{ textAlign: "left", padding: "8px 10px 8px 0", fontWeight: 500, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-3)", whiteSpace: "nowrap" }}>Concepto</th>
+          <th style={{ textAlign: "left", padding: "8px 10px 8px 0", fontWeight: 500, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-3)", whiteSpace: "nowrap" }}>{t("Concepto")}</th>
           {meses.map((m, i) => (
             <th key={i} className="num" style={{ textAlign: "right", padding: "8px 6px", fontWeight: 500, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-3)", whiteSpace: "nowrap" }}>
               {m}
             </th>
           ))}
           <th className="num" style={{ textAlign: "right", padding: "8px 6px", fontWeight: 500, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-3)", whiteSpace: "nowrap" }}>
-            Total
+            {t("Total")}
           </th>
         </tr>
       </thead>
@@ -849,28 +906,30 @@ function CashFlowTable({ final, params }) {
 
 // --- The final big "Resultado completo" step ---
 function ResultadoCompleto({ final, iterations, params, avance, avanceTotal, cobrosTotal, projectName }) {
+  const t = useT();
+  const { fmt } = useMoney();
   if (!final) {
     const ingresosPct = cobrosTotal + params.ANTICIPO;
     return (
-      <Step id="resultado" num="10" eyebrow="Resultado" title="Aún <em>incompleto</em>"
-        lede={`Egresos ${Math.abs(avanceTotal * 100).toFixed(0)}% · Ingresos (anticipo + cubicaciones) ${Math.abs(ingresosPct * 100).toFixed(0)}%. Ambos deben sumar 100% para ver el desglose completo.`} />
+      <Step id="resultado" num="10" eyebrow={t("Resultado")} title={t("Aún <em>incompleto</em>")}
+        lede={t("Egresos {a}% · Ingresos (anticipo + cubicaciones) {b}%. Ambos deben sumar 100% para ver el desglose completo.", { a: Math.abs(avanceTotal * 100).toFixed(0), b: Math.abs(ingresosPct * 100).toFixed(0) })} />
     );
   }
   return (
     <Step
       id="resultado"
-      num="08"
-      eyebrow="Resultado"
-      title="Lectura <em>completa</em>"
-      lede="Todos los componentes del FSC en su forma extensa, el flujo de caja mensual del proyecto y la convergencia iterativa del algoritmo."
+      num="10"
+      eyebrow={t("Resultado")}
+      title={t("Lectura <em>completa</em>")}
+      lede={t("Todos los componentes del FSC en su forma extensa, el flujo de caja mensual del proyecto y la convergencia iterativa del algoritmo.")}
     >
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
-        <Stat big accent label="FSC final" value={fmtFactor(final.FSC)} sub="promedio iter. 3 y 4" />
-        <Stat big accent label="PTV" value={fmtRD(final.PTV)} sub={"sobre CD = " + fmtRD(params.CD)} />
+        <Stat big accent label={t("FSC final")} value={fmtFactor(final.FSC)} sub={t("promedio iter. 3 y 4")} />
+        <Stat big accent label="PTV" value={fmt(final.PTV)} sub={t("sobre CD = ") + fmt(params.CD)} />
       </div>
 
       <h3 style={{ fontFamily: "var(--font-serif)", fontSize: 22, fontWeight: 400, margin: "0 0 12px" }}>
-        Construcción del FSC
+        {t("Construcción del FSC")}
       </h3>
       <div style={{
         background: "var(--bg-paper)", borderRadius: 10, padding: 20,
@@ -880,10 +939,10 @@ function ResultadoCompleto({ final, iterations, params, avance, avanceTotal, cob
       </div>
 
       <h3 style={{ fontFamily: "var(--font-serif)", fontSize: 22, fontWeight: 400, margin: "0 0 6px" }}>
-        Flujo de caja mensual
+        {t("Flujo de caja mensual")}
       </h3>
       <p style={{ fontSize: 13, color: "var(--ink-2)", marginTop: 0, marginBottom: 16 }}>
-        Saldo acumulado (línea) y delta mensual (barras). El punto más bajo de la curva define la inversión máxima de obra (IMO).
+        {t("Saldo acumulado (línea) y delta mensual (barras). El punto más bajo de la curva define la inversión máxima de obra (IMO).")}
       </p>
       <div style={{
         background: "var(--bg-paper)", borderRadius: 10, padding: 20,
@@ -893,35 +952,35 @@ function ResultadoCompleto({ final, iterations, params, avance, avanceTotal, cob
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 28 }}>
-        <Stat label="IMO · Inversión máxima" value={fmtRD(final.IMO)} sub="máximo déficit acumulado" />
-        <Stat label="PIT · Intereses pagados" value={fmtRD(final.PIT)} sub={"al " + fmtPct(params.TASA_ACTIVA) + " anual"} />
-        <Stat label="F · Factor financiam." value={fmtPct(final.F, 4)} sub="PIT / CD" />
+        <Stat label={t("IMO · Inversión máxima")} value={fmt(final.IMO)} sub={t("máximo déficit acumulado")} />
+        <Stat label={t("PIT · Intereses pagados")} value={fmt(final.PIT)} sub={t("al {pct} anual", { pct: fmtPct(params.TASA_ACTIVA) })} />
+        <Stat label={t("F · Factor financiam.")} value={fmtPct(final.F, 4)} sub="PIT / CD" />
       </div>
 
       <h3 style={{ fontFamily: "var(--font-serif)", fontSize: 22, fontWeight: 400, margin: "0 0 6px" }}>
-        Flujo de caja detallado mes a mes
+        {t("Flujo de caja detallado mes a mes")}
       </h3>
       <p style={{ fontSize: 13, color: "var(--ink-2)", marginTop: 0, marginBottom: 16 }}>
-        Ingresos vs egresos, diferencia acumulada y costo de financiamiento por mes. En meses con déficit se paga interés activo; en meses con superávit se gana interés pasivo.
+        {t("Ingresos vs egresos, diferencia acumulada y costo de financiamiento por mes. En meses con déficit se paga interés activo; en meses con superávit se gana interés pasivo.")}
       </p>
       <div style={{ overflowX: "auto", marginBottom: 28 }}>
         <CashFlowTable final={final} params={params} />
       </div>
 
       <h3 style={{ fontFamily: "var(--font-serif)", fontSize: 22, fontWeight: 400, margin: "0 0 6px" }}>
-        Iteraciones del FSC
+        {t("Iteraciones del FSC")}
       </h3>
       <p style={{ fontSize: 13, color: "var(--ink-2)", marginTop: 0, marginBottom: 16 }}>
-        El modelo corre 4 iteraciones de convergencia. El FSC final se calcula como el promedio de las iteraciones 3 y 4, y con ese valor se recalcula el flujo de caja final.
+        {t("El modelo corre 4 iteraciones de convergencia. El FSC final se calcula como el promedio de las iteraciones 3 y 4, y con ese valor se recalcula el flujo de caja final.")}
       </p>
       <div style={{ overflowX: "auto", marginBottom: 28 }}>
         <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", minWidth: 600 }}>
           <thead>
             <tr style={{ borderBottom: "1px solid var(--ink-2)" }}>
-              <th style={{ textAlign: "left", padding: "8px 10px 8px 0", fontWeight: 500, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-3)" }}>Componente</th>
+              <th style={{ textAlign: "left", padding: "8px 10px 8px 0", fontWeight: 500, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-3)" }}>{t("Componente")}</th>
               {iterations.map((it) => (
                 <th key={it.iter} className="num" style={{ textAlign: "right", padding: "8px 10px", fontWeight: 500, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-3)" }}>
-                  Iter. {it.iter}
+                  {t("Iter.")} {it.iter}
                 </th>
               ))}
             </tr>
@@ -936,8 +995,8 @@ function ResultadoCompleto({ final, iterations, params, avance, avanceTotal, cob
               { k: "FIFON · + FON", get: (it) => fmtFactor(it.FIFON) },
               { k: "FIU · × (1+UC)", get: (it) => fmtFactor(it.FIU) },
               { k: "FSC", get: (it) => fmtFactor(it.FSC), accent: true },
-              { k: "PTV", get: (it) => fmtRD(it.PTV) },
-              { k: "IMO", get: (it) => fmtRD(it.IMO) },
+              { k: "PTV", get: (it) => fmt(it.PTV) },
+              { k: "IMO", get: (it) => fmt(it.IMO) },
               { k: "F", get: (it) => fmtPct(it.F, 4) },
               { k: "UC", get: (it) => fmtPct(it.UC, 2) },
             ].map((row) => (
@@ -964,7 +1023,7 @@ function ResultadoCompleto({ final, iterations, params, avance, avanceTotal, cob
       </div>
 
       <h3 style={{ fontFamily: "var(--font-serif)", fontSize: 22, fontWeight: 400, margin: "0 0 12px" }}>
-        Utilidad técnica
+        {t("Utilidad técnica")}
       </h3>
       <div style={{
         background: "var(--bg-paper)", borderRadius: 10, padding: "18px 20px",
@@ -973,9 +1032,9 @@ function ResultadoCompleto({ final, iterations, params, avance, avanceTotal, cob
         color: "var(--ink-2)",
       }}>
         TAT = TPA + REA + TEA = <strong style={{ color: "var(--ink)" }}>{fmtPct(final.TAT)}</strong><br/>
-        RC = PTV / IMO = {fmtRD(final.PTV)} / {fmtRD(final.IMO)} = <strong style={{ color: "var(--ink)" }}>{final.RC.toFixed(4)}×</strong><br/>
+        RC = PTV / IMO = {fmt(final.PTV)} / {fmt(final.IMO)} = <strong style={{ color: "var(--ink)" }}>{final.RC.toFixed(4)}×</strong><br/>
         UAE = TAT / RC = <strong style={{ color: "var(--ink)" }}>{fmtPct(final.UAE)}</strong><br/>
-        GND = SGND / CD = {fmtRD(params.SGND)} / {fmtRD(params.CD)} = <strong style={{ color: "var(--ink)" }}>{fmtPct(final.GND, 4)}</strong><br/>
+        GND = SGND / CD = {fmt(params.SGND)} / {fmt(params.CD)} = <strong style={{ color: "var(--ink)" }}>{fmtPct(final.GND, 4)}</strong><br/>
         UAI = UAE + GND = <strong style={{ color: "var(--ink)" }}>{fmtPct(final.UAI)}</strong><br/>
         FAI = 1 − ISR = <strong style={{ color: "var(--ink)" }}>{fmtFactor(final.FAI)}</strong><br/>
         UC = UAI / FAI = <strong style={{ color: "var(--accent)" }}>{fmtPct(final.UC)}</strong>
@@ -986,6 +1045,7 @@ function ResultadoCompleto({ final, iterations, params, avance, avanceTotal, cob
 
 // --- Footer ---
 function Footer() {
+  const t = useT();
   return (
     <div style={{
       marginTop: 40, paddingTop: 18,
@@ -993,8 +1053,8 @@ function Footer() {
       fontSize: 11, color: "var(--ink-3)",
       display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
     }}>
-      <span>Metodología: Suárez Salazar (2005) · Adaptación a República Dominicana</span>
-      <span>Validar parámetros fiscales con asesor actualizado a la fecha del contrato.</span>
+      <span>{t("Metodología: Suárez Salazar (2005) · Adaptación a República Dominicana")}</span>
+      <span>{t("Validar parámetros fiscales con asesor actualizado a la fecha del contrato.")}</span>
     </div>
   );
 }

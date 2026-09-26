@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { fmtRD, fmtRDshort, fmtPct, fmtFactor } from './calc.js';
+import { useState, useRef, useEffect } from 'react';
+import { usePrefs, useT, makeMoney, CURRENCIES, localeFor } from './prefs.jsx';
 
 // Calculate current % position of a slider for the gradient fill
 export function rangeBg(value, min, max) {
@@ -10,6 +10,7 @@ export function rangeBg(value, min, max) {
 // Campo numérico escribible: muestra el valor formateado; al enfocar permite
 // escribirlo directamente. Enter o clic fuera aplica (limitado a min/max), Esc cancela.
 export function NumField({ value, min, max, scale = 1, onCommit, format, accent, color, width = 84, fontSize = 14 }) {
+  const t = useT();
   const [txt, setTxt] = useState(null);
   const cancelRef = useRef(false);
   const commit = (raw) => {
@@ -39,7 +40,7 @@ export function NumField({ value, min, max, scale = 1, onCommit, format, accent,
         if (e.key === "Enter") e.target.blur();
         if (e.key === "Escape") { cancelRef.current = true; e.target.blur(); }
       }}
-      title="Click para escribir el valor"
+      title={t("Click para escribir el valor")}
       style={{
         width, textAlign: "right", fontSize, fontWeight: 500,
         fontFamily: "var(--font-mono)",
@@ -53,6 +54,7 @@ export function NumField({ value, min, max, scale = 1, onCommit, format, accent,
 }
 
 export function Slider({ label, value, min, max, step, onChange, format, hint, kbd, accent }) {
+  const t = useT();
   const [showHint, setShowHint] = useState(false);
   // Si el formato es porcentual, el campo acepta el número en puntos porcentuales (ej. 6.5 = 6.5%)
   const numScale = format && /%/.test(format(value)) ? 100 : 1;
@@ -65,7 +67,7 @@ export function Slider({ label, value, min, max, step, onChange, format, hint, k
             <button
               onClick={(e) => { e.preventDefault(); setShowHint((v) => !v); }}
               type="button"
-              aria-label="Más información"
+              aria-label={t("Más información")}
               style={{
                 width: 16, height: 16, padding: 0, borderRadius: "50%",
                 fontSize: 10, fontFamily: "var(--font-mono)",
@@ -103,26 +105,52 @@ export function Slider({ label, value, min, max, step, onChange, format, hint, k
   );
 }
 
-export function MoneyInput({ label, value, onChange, hint, step, big }) {
+// Campo de monto con selector de moneda propio (RD$ / US$). El valor siempre
+// entra y sale en DOP; el selector solo cambia la unidad en que se escribe.
+// Arranca en la moneda global y la sigue cuando esta cambia.
+export function MoneyInput({ label, value, onChange, hint, big }) {
+  const t = useT();
+  const { currency, rate, lang } = usePrefs();
+  const [unit, setUnit] = useState(currency);
+  useEffect(() => setUnit(currency), [currency]);
+  const [txt, setTxt] = useState(null);
+  const locale = localeFor(lang);
+  const factor = unit === "USD" ? rate : 1;
+  const shown = (value || 0) / factor;
+  const other = makeMoney(unit === "USD" ? "DOP" : "USD", rate, lang);
+
+  const parse = (raw) => {
+    const n = parseFloat(String(raw).replace(/[^\d.\-]/g, ""));
+    return isNaN(n) ? null : Math.max(0, n);
+  };
+  const handleChange = (raw) => {
+    setTxt(raw);
+    const n = parse(raw);
+    onChange(n === null ? 0 : n * factor);
+  };
+
   return (
     <div style={{ marginBottom: 18 }}>
-      {label && (
-        <label style={{ fontSize: 13, color: "var(--ink-2)", display: "block", marginBottom: 6 }}>
-          {label}
-        </label>
-      )}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
+        {label ? (
+          <label style={{ fontSize: 13, color: "var(--ink-2)" }}>{label}</label>
+        ) : <span />}
+        <CurrencyToggle value={unit} onChange={(u) => { setUnit(u); setTxt(null); }} />
+      </div>
       <div style={{ position: "relative" }}>
         <span style={{
           position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
           fontFamily: "var(--font-mono)", fontSize: big ? 18 : 13,
           color: "var(--ink-3)", pointerEvents: "none",
-        }}>RD$</span>
+        }}>{CURRENCIES[unit].sym}</span>
         <input
-          type="number"
-          value={value}
-          step={step || 1000}
-          min={0}
-          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+          type="text"
+          inputMode="decimal"
+          value={txt !== null ? txt : shown.toLocaleString(locale, { maximumFractionDigits: 2 })}
+          onFocus={(e) => { setTxt(String(+shown.toFixed(2))); setTimeout(() => e.target.select(), 0); }}
+          onChange={(e) => handleChange(e.target.value)}
+          onBlur={() => setTxt(null)}
+          onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
           className="num"
           style={{
             width: "100%",
@@ -133,7 +161,40 @@ export function MoneyInput({ label, value, onChange, hint, step, big }) {
           }}
         />
       </div>
-      {hint && <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>{hint}</div>}
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>
+        <span>{hint}</span>
+        <span className="num" style={{ whiteSpace: "nowrap" }} title={t("Tasa de cambio: RD$ {rate} por US$ 1", { rate: rate.toFixed(2) })}>
+          ≈ {other.fmt(value)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Selector compacto RD$ / US$
+export function CurrencyToggle({ value, onChange }) {
+  const t = useT();
+  return (
+    <div role="group" aria-label={t("Moneda")} style={{
+      display: "inline-flex", padding: 2, gap: 2,
+      background: "var(--bg-paper)", border: "1px solid var(--rule)", borderRadius: 6,
+    }}>
+      {Object.entries(CURRENCIES).map(([code, c]) => {
+        const active = code === value;
+        return (
+          <button key={code} type="button" onClick={() => onChange(code)}
+            aria-pressed={active}
+            title={code === "DOP" ? t("Peso dominicano") : t("Dólar estadounidense")}
+            style={{
+              padding: "2px 8px", fontSize: 11, fontFamily: "var(--font-mono)",
+              fontWeight: active ? 500 : 400,
+              background: active ? "var(--card)" : "transparent",
+              border: active ? "1px solid var(--rule-strong)" : "1px solid transparent",
+              color: active ? "var(--ink)" : "var(--ink-3)",
+              borderRadius: 4, cursor: "pointer",
+            }}>{c.sym}</button>
+        );
+      })}
     </div>
   );
 }

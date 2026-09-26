@@ -192,6 +192,8 @@ export const DEFAULTS = {
   FON: 0.01,
   ITBIS: 0.18,
   PCM: 0,
+  // RD$ por US$ 1 — solo para mostrar/escribir montos en dólares; editable en el paso 01
+  TASA_CAMBIO: 63.0,
 };
 
 export const DEFAULT_AVANCE = [0.05, 0.20, 0.40, 0.20, 0.15, 0, 0, 0, 0, 0, 0, 0];
@@ -203,7 +205,8 @@ export function makeDefaultAvance(duracion) {
   if (duracion <= 0) return [];
   const arr = Array(duracion).fill(0);
   const preset = [0.05, 0.20, 0.40, 0.20, 0.15];
-  for (let i = 0; i < Math.min(duracion, preset.length); i++) arr[i] = preset[i];
+  // Si la obra dura menos que el preset, lo que sobra se acumula en el último mes
+  preset.forEach((v, i) => { arr[Math.min(i, duracion - 1)] += v; });
   return arr;
 }
 
@@ -214,7 +217,9 @@ export function makeDefaultCobros(duracion, anticipo = 0.20) {
   // escalado a (1 - anticipo) porque M1 es el anticipo.
   const preset = [0, 0.05, 0.20, 0.40, 0.20, 0.15];
   const k = 1 - anticipo;
-  for (let i = 0; i < Math.min(duracion, preset.length); i++) arr[i] = preset[i] * k;
+  if (duracion === 1) return arr; // solo cabe el anticipo
+  // Igual que el avance: lo que no cabe se cobra en el último mes
+  preset.forEach((v, i) => { arr[Math.min(i, duracion - 1)] += v * k; });
   return arr;
 }
 
@@ -264,7 +269,8 @@ const EXAMPLE_PUBLICA = {
     CC: 0.082,
   },
   avance: [0.15, 0.25, 0.30, 0.20, 0.10, 0, 0, 0, 0, 0, 0, 0],
-  cobros: [0, 0.105, 0.175, 0.21, 0.14, 0.07, 0, 0, 0, 0, 0, 0],
+  // Obra de 5 meses: la última cubicación (M6) se cobra junto con la de M5
+  cobros: [0, 0.105, 0.175, 0.21, 0.21, 0, 0, 0, 0, 0, 0, 0],
 };
 
 export const EXAMPLES = {

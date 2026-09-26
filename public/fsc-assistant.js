@@ -3,6 +3,49 @@
 
   const ENDPOINT = '/.netlify/functions/ask-ai';
 
+  const STRINGS = {
+    es: {
+      greeting: 'Hola, soy tu asistente FSC. Pregúntame sobre el Factor de Sobrecosto, el PTV o recomendaciones para tu proyecto.',
+      title: 'Asistente FSC',
+      open: 'Abrir asistente FSC',
+      clear: 'Limpiar',
+      clearTitle: 'Limpiar conversación',
+      close: 'Cerrar',
+      placeholder: 'Pregunta sobre FSC, PTV, costos...',
+      thinking: 'Pensando...',
+      error: 'Lo siento, hubo un error al consultar el asistente. ',
+      empty: 'No se obtuvo respuesta.',
+      network: 'Error de conexión con el asistente. Inténtalo de nuevo.',
+    },
+    en: {
+      greeting: "Hi, I'm your FSC assistant. Ask me about the Overhead Factor, the PTV or recommendations for your project.",
+      title: 'FSC Assistant',
+      open: 'Open FSC assistant',
+      clear: 'Clear',
+      clearTitle: 'Clear conversation',
+      close: 'Close',
+      placeholder: 'Ask about FSC, PTV, costs...',
+      thinking: 'Thinking...',
+      error: 'Sorry, something went wrong asking the assistant. ',
+      empty: 'No answer was returned.',
+      network: 'Could not reach the assistant. Please try again.',
+    },
+  };
+
+  function getLang() {
+    try {
+      return localStorage.getItem('fsc-lang') === 'en' ? 'en' : 'es';
+    } catch (e) {
+      return 'es';
+    }
+  }
+  function tr(key) {
+    return STRINGS[getLang()][key];
+  }
+  function isGreeting(msg) {
+    return msg.role === 'assistant' && (msg.content === STRINGS.es.greeting || msg.content === STRINGS.en.greeting);
+  }
+
   function getProjectName() {
     try {
       return localStorage.getItem('fsc-project-name') || 'default';
@@ -30,9 +73,7 @@
     } catch (e) {}
     return {
       open: false,
-      messages: [
-        { role: 'assistant', content: 'Hola, soy tu asistente FSC. Pregúntame sobre el Factor de Sobrecosto, el PTV o recomendaciones para tu proyecto.' }
-      ],
+      messages: [{ role: 'assistant', content: tr('greeting') }],
       pos: null,
     };
   }
@@ -90,6 +131,9 @@
         RC: final ? final.RC : null,
         PCM: params.PCM,
         TIPO_OBRA_CODIA: params.TIPO_OBRA_CODIA,
+        TASA_CAMBIO: params.TASA_CAMBIO,
+        lang: getLang(),
+        currency: localStorage.getItem('fsc-currency') === 'USD' ? 'USD' : 'DOP',
         avance,
         cobros,
         iterations,
@@ -246,8 +290,8 @@
     const btn = document.createElement('button');
     btn.id = 'fsc-assistant-btn';
     btn.innerHTML = '<i class="fa-solid fa-robot"></i>';
-    btn.title = 'Asistente FSC';
-    btn.setAttribute('aria-label', 'Abrir asistente FSC');
+    btn.title = tr('title');
+    btn.setAttribute('aria-label', tr('open'));
     btn.addEventListener('click', togglePanel);
     document.body.appendChild(btn);
 
@@ -257,15 +301,15 @@
 
     chatPanel.innerHTML = `
       <div id="fsc-assistant-header">
-        <strong><i class="fa-solid fa-robot" style="margin-right:8px"></i>Asistente FSC</strong>
+        <strong><i class="fa-solid fa-robot" style="margin-right:8px"></i><span id="fsc-assistant-title"></span></strong>
         <div>
-          <button id="fsc-assistant-clear" title="Limpiar conversación">Limpiar</button>
-          <button id="fsc-assistant-close" title="Cerrar">×</button>
+          <button id="fsc-assistant-clear"></button>
+          <button id="fsc-assistant-close">×</button>
         </div>
       </div>
       <div id="fsc-assistant-messages"></div>
       <div id="fsc-assistant-input-area">
-        <textarea id="fsc-assistant-input" rows="1" placeholder="Pregunta sobre FSC, PTV, costos..."></textarea>
+        <textarea id="fsc-assistant-input" rows="1"></textarea>
         <button id="fsc-assistant-send"><i class="fa-solid fa-paper-plane"></i></button>
       </div>
     `;
@@ -296,7 +340,22 @@
     document.addEventListener('mousemove', onDrag);
     document.addEventListener('mouseup', stopDrag);
 
+    applyLabels();
     renderMessages();
+  }
+
+  function applyLabels() {
+    const btn = document.getElementById('fsc-assistant-btn');
+    if (btn) {
+      btn.title = tr('title');
+      btn.setAttribute('aria-label', tr('open'));
+    }
+    chatPanel.querySelector('#fsc-assistant-title').textContent = tr('title');
+    const clear = chatPanel.querySelector('#fsc-assistant-clear');
+    clear.textContent = tr('clear');
+    clear.title = tr('clearTitle');
+    chatPanel.querySelector('#fsc-assistant-close').title = tr('close');
+    inputEl.placeholder = tr('placeholder');
   }
 
   function togglePanel() {
@@ -340,9 +399,19 @@
     saveState();
   }
 
+  function escapeHtml(text) {
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function renderMarkdown(text) {
-    // Basic markdown: **bold**, *italic*, `code`
-    let html = text
+    // Basic markdown: **bold**, *italic*, `code` — escaped first so model or
+    // user text can never inject HTML
+    let html = escapeHtml(text)
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/`(.+?)`/g, '<code>$1</code>');
@@ -354,7 +423,7 @@
     state.messages.forEach((msg) => {
       const div = document.createElement('div');
       div.className = 'fsc-msg ' + msg.role;
-      div.innerHTML = renderMarkdown(msg.content);
+      div.innerHTML = renderMarkdown(isGreeting(msg) ? tr('greeting') : msg.content);
       messagesEl.appendChild(div);
     });
     messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -368,20 +437,26 @@
   }
 
   function clearChat() {
-    state.messages = [
-      { role: 'assistant', content: 'Hola, soy tu asistente FSC. Pregúntame sobre el Factor de Sobrecosto, el PTV o recomendaciones para tu proyecto.' }
-    ];
+    state.messages = [{ role: 'assistant', content: tr('greeting') }];
     saveState();
     renderMessages();
   }
 
   // Load each project's chat history separately
   let lastStorageKey = getStorageKey();
+  let lastLang = getLang();
   setInterval(() => {
+    if (!chatPanel) return;
     const currentKey = getStorageKey();
     if (currentKey !== lastStorageKey) {
       lastStorageKey = currentKey;
       state = loadState();
+      renderMessages();
+    }
+    const lang = getLang();
+    if (lang !== lastLang) {
+      lastLang = lang;
+      applyLabels();
       renderMessages();
     }
   }, 1000);
@@ -399,12 +474,12 @@
 
     const typing = document.createElement('div');
     typing.className = 'fsc-typing';
-    typing.textContent = 'Pensando...';
+    typing.textContent = tr('thinking');
     messagesEl.appendChild(typing);
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
     const context = getCalculatorContext();
-    const history = state.messages.slice(0, -1).map((m) => ({ role: m.role, content: m.content }));
+    const history = state.messages.slice(0, -1).filter((m) => !isGreeting(m)).map((m) => ({ role: m.role, content: m.content }));
 
     try {
       const res = await fetch(ENDPOINT, {
@@ -415,14 +490,14 @@
       typing.remove();
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        addMessage('assistant', 'Lo siento, hubo un error al consultar el asistente. ' + (err.error || ''));
+        addMessage('assistant', tr('error') + (err.error || ''));
         return;
       }
       const data = await res.json();
-      addMessage('assistant', data.answer || 'No se obtuvo respuesta.');
+      addMessage('assistant', data.answer || tr('empty'));
     } catch (err) {
       typing.remove();
-      addMessage('assistant', 'Error de conexión con el asistente. Inténtalo de nuevo.');
+      addMessage('assistant', tr('network'));
     } finally {
       sendBtn.disabled = false;
     }

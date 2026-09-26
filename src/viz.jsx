@@ -1,17 +1,19 @@
-import { fmtRD, fmtRDshort, fmtPct, fmtFactor } from './calc.js';
+import { fmtFactor } from './calc.js';
+import { useT, useMoney } from './prefs.jsx';
 
 // --- FSC Waterfall: 1 → CO → CC → CI → F → CODIA → FON → ×(1+UC) = FSC
 export function WaterfallFSC({ final }) {
+  const t = useT();
   if (!final) return null;
   const steps = [
-    { key: "Base", label: "Base (CD)", v: 1, delta: 1, color: "#1a1612", isBase: true },
-    { key: "CO",   label: "Operación",       v: final.FIO,   delta: final.FIO - 1, color: "#8a8276" },
-    { key: "CC",   label: "Campo",           v: final.FIC,   delta: final.FIC - final.FIO, color: "#8a8276" },
-    { key: "CI",   label: "Imprevistos",     v: final.FII,   delta: final.FII - final.FIC, color: "#8a8276" },
-    { key: "F",    label: "Financiamiento",  v: final.FIF,   delta: final.FIF - final.FII, color: "#8a8276" },
+    { key: "Base", label: t("Base (CD)"), v: 1, delta: 1, color: "#1a1612", isBase: true },
+    { key: "CO",   label: t("Operación"),       v: final.FIO,   delta: final.FIO - 1, color: "#8a8276" },
+    { key: "CC",   label: t("Campo"),           v: final.FIC,   delta: final.FIC - final.FIO, color: "#8a8276" },
+    { key: "CI",   label: t("Imprevistos"),     v: final.FII,   delta: final.FII - final.FIC, color: "#8a8276" },
+    { key: "F",    label: t("Financiamiento"),  v: final.FIF,   delta: final.FIF - final.FII, color: "#8a8276" },
     { key: "CODIA",label: "CODIA",           v: final.FICOD, delta: final.FICOD - final.FIF, color: "#8a8276" },
-    { key: "FON",  label: "F. Pensiones",    v: final.FIFON, delta: final.FIFON - final.FICOD, color: "#8a8276" },
-    { key: "UC",   label: "Utilidad UC",     v: final.FIU,   delta: final.FIU - final.FIFON, color: "var(--accent)" },
+    { key: "FON",  label: t("F. Pensiones"),    v: final.FIFON, delta: final.FIFON - final.FICOD, color: "#8a8276" },
+    { key: "UC",   label: t("Utilidad UC"),     v: final.FIU,   delta: final.FIU - final.FIFON, color: "var(--accent)" },
     { key: "FSC",  label: "FSC",             v: final.FSC,   delta: 0, color: "var(--accent)", isFinal: true },
   ];
   const maxV = Math.max(...steps.map((s) => s.v));
@@ -92,6 +94,8 @@ export function WaterfallFSC({ final }) {
 
 // --- Cash flow chart: DIFA line + zero baseline
 export function CashFlowChart({ iteration, height, showLegend }) {
+  const t = useT();
+  const { fmtShort } = useMoney();
   if (!iteration) return null;
   const h = height || 180;
   const cf = iteration.cashFlow;
@@ -156,17 +160,17 @@ export function CashFlowChart({ iteration, height, showLegend }) {
 
       <div style={{ display: "flex", marginTop: 6, fontSize: 10, color: "var(--ink-3)", fontFamily: "var(--font-mono)" }}>
         {DIFA.map((_, i) => (
-          <div key={i} style={{ flex: 1, textAlign: "center" }}>M{i + 1}</div>
+          <div key={i} style={{ flex: 1, textAlign: "center" }}>{t("M")}{i + 1}</div>
         ))}
       </div>
 
       {showLegend && (
         <div style={{ display: "flex", gap: 16, marginTop: 10, fontSize: 11, color: "var(--ink-2)" }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 12, height: 2, background: "var(--ink)" }}></span> Saldo acumulado (DIFA)
+            <span style={{ width: 12, height: 2, background: "var(--ink)" }}></span> {t("Saldo acumulado (DIFA)")}
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 10, height: 10, background: "var(--bad)", opacity: 0.6 }}></span> IMO = {fmtRDshort(iteration.IMO)}
+            <span style={{ width: 10, height: 10, background: "var(--bad)", opacity: 0.6 }}></span> IMO = {fmtShort(iteration.IMO)}
           </span>
         </div>
       )}

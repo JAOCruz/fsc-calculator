@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=loops&utm_source=ai-legible&utm_medium=owned&utm_content=comment&utm_id=1ddd9bbd-0c62-483d-90be-57121d73466e
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="icon" href="data:," />
+<title>Documentación · Factor de Sobrecosto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous"
+    onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
+<style>
+  :root {
+    --bg: #f6f1e7;
+    --bg-paper: #fbf7ee;
+    --card: #ffffff;
+    --ink: #1a1612;
+    --ink-2: #4a443c;
+    --ink-3: #8a8276;
+    --ink-4: #b9b1a1;
+    --rule: rgba(26, 22, 18, 0.10);
+    --rule-strong: rgba(26, 22, 18, 0.18);
+    --accent: oklch(0.58 0.16 38);
+    --accent-ink: oklch(0.36 0.12 38);
+    --accent-tint: oklch(0.94 0.04 42);
+    --good: oklch(0.55 0.11 155);
+    --good-tint: oklch(0.94 0.05 155);
+    --bad: oklch(0.55 0.18 25);
+    --bad-tint: oklch(0.95 0.05 25);
+    --shadow: 0 1px 0 rgba(26,22,18,0.04), 0 4px 24px -8px rgba(26,22,18,0.08);
+    --radius: 10px;
+    --radius-sm: 6px;
+    --font-serif: 'Instrument Serif', 'Times New Roman', serif;
+    --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--accent); color: white; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--ink-4); border-radius: 10px; border: 2px solid var(--bg); }
+
+  a { color: var(--accent-ink); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .shell { max-width: 900px; margin: 0 auto; padding: 32px 48px 64px; }
+  @media (max-width: 960px) { .shell { padding: 20px 16px 40px; } }
+
+  .header-bar {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 24px; margin-bottom: 40px; padding-bottom: 18px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .brand { display: flex; align-items: baseline; gap: 12px; }
+  .brand-mark { font-family: var(--font-serif); font-size: 28px; line-height: 1; letter-spacing: -0.01em; }
+  .brand-mark em { color: var(--accent); font-style: italic; }
+  .brand-sub { font-size: 12px; color: var(--ink-3); letter-spacing: 0.04em; text-transform: uppercase; }
+
+  h1 { font-family: var(--font-serif); font-size: 42px; font-weight: 400; margin: 0 0 12px; letter-spacing: -0.01em; line-height: 1.1; }
+  h1 em { color: var(--accent); font-style: italic; }
+  h2 { font-family: var(--font-serif); font-size: 28px; font-weight: 400; margin: 48px 0 16px; letter-spacing: -0.01em; }
+  h3 { font-family: var(--font-serif); font-size: 22px; font-weight: 400; margin: 36px 0 12px; }
+  h4 { font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin: 28px 0 10px; font-weight: 500; }
+
+  p { margin: 0 0 16px; color: var(--ink-2); max-width: 70ch; }
+  p.lede { font-size: 17px; color: var(--ink-2); margin-bottom: 32px; }
+
+  .tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 500;
+    background: var(--accent-tint); color: var(--accent-ink); border: 1px solid color-mix(in oklab, var(--accent) 20%, transparent);
+  }
+  .tag.good { background: var(--good-tint); color: oklch(0.35 0.11 155); border-color: color-mix(in oklab, var(--good) 25%, transparent); }
+  .tag.bad { background: var(--bad-tint); color: oklch(0.35 0.18 25); border-color: color-mix(in oklab, var(--bad) 25%, transparent); }
+
+  .equation-block {
+    background: var(--bg-paper); border: 1px solid var(--rule); border-radius: var(--radius);
+    padding: 20px 24px; margin: 16px 0;
+    overflow-x: auto;
+  }
+  .equation-block .katex-display { margin: 8px 0; }
+
+  .two-col {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+  @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); border-radius: var(--radius); padding: 20px;
+    border: 1px solid var(--rule-strong); box-shadow: var(--shadow);
+  }
+  .card h4 { margin-top: 0; }
+
+  table.defs {
+    width: 100%; font-size: 14px; border-collapse: collapse; margin: 16px 0;
+  }
+  table.defs th {
+    text-align: left; padding: 8px 10px; font-weight: 500; font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3);
+    border-bottom: 1px solid var(--ink-2);
+  }
+  table.defs td {
+    padding: 7px 10px; border-bottom: 1px solid var(--rule);
+    color: var(--ink-2);
+  }
+  table.defs td:first-child { font-family: var(--font-mono); color: var(--ink); font-weight: 500; white-space: nowrap; }
+  table.defs td:last-child { font-size: 13px; }
+
+  .note {
+    background: var(--bg-paper); border-left: 3px solid var(--accent);
+    padding: 14px 18px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    margin: 20px 0; font-size: 14px; color: var(--ink-2);
+  }
+
+  .katex { font-size: 1.05em; }
+  .back-link {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--rule-strong); background: var(--card);
+    color: var(--ink); font-size: 13px; cursor: pointer;
+    transition: background .15s;
+  }
+  .back-link:hover { background: var(--bg-paper); text-decoration: none; }
+
+  .footer-doc {
+    margin-top: 64px; padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    font-size: 12px; color: var(--ink-3);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12;
+  }
+
+  .header-actions { display: flex; align-items: center; gap: 10px; }
+  .lang-switch {
+    display: inline-flex; align-items: center;
+    border: 1px solid var(--rule-strong); border-radius: var(--radius-sm);
+    background: var(--card); overflow: hidden;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em;
+  }
+  .lang-switch button {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    padding: 7px 9px; color: var(--ink-3); font: inherit; line-height: 1;
+    transition: background .15s, color .15s;
+  }
+  .lang-switch button + button { border-left: 1px solid var(--rule); }
+  .lang-switch button:hover { color: var(--ink); background: var(--bg-paper); }
+  .lang-switch button[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent-tint); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="header-bar">
+    <div class="brand">
+      <div class="brand-mark" data-i18n="t1">Factor de <em>Sobrecosto</em></div>
+      <div class="brand-sub" data-i18n="t2">Documentación matemática</div>
+    </div>
+    <div class="header-actions">
+      <div class="lang-switch" role="group" aria-label="Idioma / Language">
+        <button type="button" data-lang="es" aria-pressed="true">ES</button>
+        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+      </div>
+      <a class='back-link' href='/' data-i18n="back">← Volver a la calculadora</a>
+    </div>
+  </div>
+
+  <h1 data-i18n="t3">Documentación <em>matemática</em></h1>
+  <p class="lede" data-i18n="t4">
+    Referencia completa de las ecuaciones que sustentan el cálculo del Factor de Sobrecosto (FSC)
+    para la determinación del precio técnico de venta de inmuebles en República Dominicana.
+    Basado en la metodología de <strong>Suárez Salazar (2005)</strong> adaptada al contexto fiscal y gremial dominicano.
+  </p>
+
+  <h2 data-i18n="t5">1. Variables del sistema</h2>
+  <table class="defs" data-i18n="t6">
+    <thead><tr><th>Variable</th><th>Significado</th><th>Unidad</th></tr></thead>
+    <tbody>
+      <tr><td>$CD$</td><td>Costo Directo de Obra — suma de materiales, mano de obra y equipo</td><td>RD$</td></tr>
+      <tr><td>$CO$</td><td>Costo indirecto de operación (oficina central)</td><td>fracción</td></tr>
+      <tr><td>$CC$</td><td>Costo indirecto de campo u obra</td><td>fracción</td></tr>
+      <tr><td>$CI$</td><td>Imprevistos</td><td>fracción</td></tr>
+      <tr><td>$TPA$</td><td>Tasa pasiva anualizada</td><td>fracción anual</td></tr>
+      <tr><td>$REA$</td><td>Riesgo empresarial anualizado</td><td>fracción anual</td></tr>
+      <tr><td>$TEA$</td><td>Tecnología e investigación anualizada</td><td>fracción anual</td></tr>
+      <tr><td>$ISR$</td><td>Impuesto sobre la renta</td><td>fracción</td></tr>
+      <tr><td>$SGND$</td><td>Suma de gastos no deducibles</td><td>RD$</td></tr>
+      <tr><td>$T_{activa}$</td><td>Tasa activa anual (costo de financiar déficit)</td><td>fracción anual</td></tr>
+      <tr><td>$T_{pasiva}$</td><td>Tasa pasiva anual para saldos positivos</td><td>fracción anual</td></tr>
+      <tr><td>$\alpha$</td><td>Porcentaje de anticipo</td><td>fracción del PTV</td></tr>
+      <tr><td>$\delta$</td><td>Descuentos varios sobre cubicaciones</td><td>fracción del PTV</td></tr>
+      <tr><td>$d$</td><td>Duración de obra</td><td>meses</td></tr>
+      <tr><td>$CODIA$</td><td>Cuota del Colegio Dominicano de Ingenieros y Arquitectos</td><td>fracción</td></tr>
+      <tr><td>$FON$</td><td>Fondo de Pensiones de Trabajadores de Construcción</td><td>fracción</td></tr>
+      <tr><td>$ITBIS$</td><td>Impuesto a la Transferencia de Bienes Industrializados y Servicios</td><td>fracción</td></tr>
+      <tr><td>$PCM$</td><td>Precio Comercial de Mercado — precio real de oferta o venta del inmueble</td><td>RD$</td></tr>
+      <tr><td>$DM$</td><td>Diferencial de Mercado — diferencia entre PCM y PTV</td><td>RD$</td></tr>
+    </tbody>
+  </table>
+
+  <h2 data-i18n="t7">2. Precio Técnico de Venta y cubicaciones</h2>
+  <p data-i18n="t8">El precio técnico de venta se define como el costo directo multiplicado por el factor de sobrecosto:</p>
+  <div class="equation-block">
+    $$PTV = CD \times FSC$$
+  </div>
+  <p data-i18n="t9">El modelo usa dos cronogramas independientes:</p>
+  <ul data-i18n="t10">
+    <li><strong>Cronograma de egresos</strong> $a_m$: distribución mensual del avance físico (ejecución). Controla cuándo se incurre en costos.</li>
+    <li><strong>Cronograma de ingresos</strong> $b_m$: distribución mensual de los cobros por cubicaciones. Controla cuándo entra el dinero.</li>
+  </ul>
+  <div class="equation-block">
+    $$\sum_{m=1}^{d} a_m = 1 \qquad ; \qquad \sum_{m=1}^{d} b_m = 1$$
+  </div>
+
+  <h2 data-i18n="t11">3. Ingresos mensuales</h2>
+  <p data-i18n="t12">Los ingresos del proyecto provienen del anticipo inicial y de los cobros por cubicaciones, menos amortización de anticipos y descuentos contractuales.</p>
+
+  <h4 data-i18n="t13">Anticipo inicial</h4>
+  <div class="equation-block">
+    $$ANT_1 = \alpha \times PTV \qquad ; \qquad ANT_m = 0 \;\; \forall m > 1$$
+  </div>
+
+  <h4 data-i18n="t14">Cobros por cubicaciones</h4>
+  <p data-i18n="t15">Los cobros se controlan directamente con el cronograma de ingresos $b_m$:</p>
+  <div class="equation-block">
+    $$COB_m = b_m \times PTV$$
+  </div>
+
+  <h4 data-i18n="t16">Amortización de anticipos y descuentos</h4>
+  <div class="equation-block">
+    $$AMO_m = -\alpha \times COB_m \qquad ; \qquad DES_m = -\delta \times COB_m$$
+  </div>
+
+  <h4 data-i18n="t17">Total de ingresos</h4>
+  <div class="equation-block">
+    $$SING_m = ANT_m + COB_m + AMO_m + DES_m$$
+  </div>
+
+  <h2 data-i18n="t18">4. Egresos mensuales</h2>
+  <p data-i18n="t19">Los egresos comprenden el costo directo distribuido, los indirectos de oficina y campo, y los imprevistos.</p>
+
+  <h4 data-i18n="t20">Costo directo mensual</h4>
+  <div class="equation-block">
+    $$EG_{CD,m} = a_m \times CD$$
+  </div>
+
+  <h4 data-i18n="t21">Gastos indirectos</h4>
+  <div class="equation-block">
+    $$GOC = \frac{CD \times CO}{d} \qquad ; \qquad GOB = \frac{CD \times CC}{d}$$
+  </div>
+  <p data-i18n="t22">Aplicados solo durante los $d$ meses de obra:</p>
+  <div class="equation-block">
+    $$SEGR_m = EG_{CD,m} + \bigl(GOC + GOB \bigr) \cdot \mathbf{1}_{m \leq d} + CI \times EG_{CD,m}$$
+  </div>
+
+  <h2 data-i18n="t23">5. Flujo de caja</h2>
+  <p data-i18n="t24">La diferencia parcial mes a mes y su acumulación:</p>
+  <div class="equation-block">
+    $$DIFP_m = SING_m - SEGR_m$$
+  </div>
+  <div class="equation-block">
+    $$DIFA_m = \sum_{i=1}^{m} DIFP_i$$
+  </div>
+
+  <div class="note" data-i18n="t25">
+    <strong>Inversión Máxima en Obra (IMO):</strong> el punto más bajo de la curva $DIFA$ representa la máxima exposición de capital.
+    $$IMO = \bigl| \min_m DIFA_m \bigr|$$
+  </div>
+
+  <h2 data-i18n="t26">6. Financiamiento</h2>
+  <p data-i18n="t27">Cuando el flujo acumulado es positivo, el saldo gana interés pasivo. Cuando es negativo, se paga interés activo por financiamiento.</p>
+
+  <div class="two-col">
+    <div class="card">
+      <h4 data-i18n="t28">Interés pasivo (ganancia)</h4>
+      <div class="equation-block" style="margin:0" data-i18n="cases1">
+        $$FPAS_m = \begin{cases} DIFA_m \times \dfrac{T_{pasiva}}{12} & \text{si } DIFA_m > 0 \\ 0 & \text{si } DIFA_m \leq 0 \end{cases}$$
+      </div>
+      <span class="tag good" data-i18n="t29">Saldo positivo → gana</span>
+    </div>
+    <div class="card">
+      <h4 data-i18n="t30">Interés activo (costo)</h4>
+      <div class="equation-block" style="margin:0" data-i18n="cases2">
+        $$FACT_m = \begin{cases} DIFA_m \times \dfrac{T_{activa}}{12} & \text{si } DIFA_m < 0 \\ 0 & \text{si } DIFA_m \geq 0 \end{cases}$$
+      </div>
+      <span class="tag bad" data-i18n="t31">Déficit → paga</span>
+    </div>
+  </div>
+
+  <h4 data-i18n="t32">Financiamiento parcial y acumulado</h4>
+  <div class="equation-block">
+    $$FPAR_m = FPAS_m + FACT_m$$
+  </div>
+
+  <h4 data-i18n="t33">Pago de Intereses Totales (PIT)</h4>
+  <div class="equation-block">
+    $$PIT = \sum_{m=1}^{12} |FACT_m|$$
+  </div>
+
+  <h4 data-i18n="t34">Factor de financiamiento</h4>
+  <div class="equation-block">
+    $$F = \frac{PIT}{CD}$$
+  </div>
+
+  <h2 data-i18n="t35">7. Utilidad técnica</h2>
+  <p data-i18n="t36">La utilidad se deriva de la tasa anual total, la revolvencia del capital y los aspectos fiscales.</p>
+
+  <div class="equation-block">
+    $$TAT = TPA + REA + TEA$$
+  </div>
+  <div class="equation-block">
+    $$RC = \frac{PTV}{IMO}$$
+  </div>
+  <div class="equation-block">
+    $$UAE = \frac{TAT}{RC}$$
+  </div>
+  <div class="equation-block">
+    $$GND = \frac{SGND}{CD}$$
+  </div>
+  <div class="equation-block">
+    $$UAI = UAE + GND$$
+  </div>
+  <div class="equation-block">
+    $$FAI = 1 - ISR$$
+  </div>
+  <div class="equation-block">
+    $$UC = \frac{UAI}{FAI}$$
+  </div>
+
+  <div class="note" data-i18n="t37">
+    <strong>Utilidad de Concurso (UC):</strong> es el porcentaje de utilidad que debe incluirse en el precio técnico de venta para que, después de pagar el ISR, la empresa obtenga la rentabilidad esperada $(TAT)$ compensando los gastos no deducibles.
+  </div>
+
+  <h2 data-i18n="t38">8. Construcción progresiva del FSC</h2>
+  <p data-i18n="t39">El Factor de Sobrecosto se construye sumando incrementalmente cada componente de costo e indirecto sobre la base del costo directo.</p>
+
+  <div class="equation-block">
+    $$FIO = 1 + CO$$
+  </div>
+  <div class="equation-block">
+    $$FIC = FIO + CC$$
+  </div>
+  <div class="equation-block">
+    $$FII = FIC + CI$$
+  </div>
+  <div class="equation-block">
+    $$FIF = FII + F$$
+  </div>
+  <div class="equation-block">
+    $$FICOD = FIF + CODIA$$
+  </div>
+  <div class="equation-block">
+    $$FIFON = FICOD + FON$$
+  </div>
+  <div class="equation-block">
+    $$FIU = FIFON \times (1 + UC)$$
+  </div>
+  <div class="equation-block" style="background: var(--accent-tint); border-color: color-mix(in oklab, var(--accent) 20%, transparent);">
+    $$FSC = FIU$$
+  </div>
+
+  <h2 data-i18n="t40">9. Proceso iterativo</h2>
+  <p data-i18n="t41">El cálculo del FSC es inherentemente circular: el factor depende del precio técnico de venta, pero el precio técnico de venta depende del factor. Se resuelve por iteraciones sucesivas:</p>
+
+  <div class="equation-block">
+    $$FSC_{n+1} = f\bigl(FSC_n\bigr)$$
+  </div>
+
+  <p data-i18n="t42"><strong>Iteración 1:</strong> se parte de un factor supuesto inicial $FSC_0$ (típicamente 1.20–1.40).</p>
+  <p data-i18n="t43"><strong>Iteraciones 2–4:</strong> cada nueva iteración utiliza el $FSC$ calculado de la iteración anterior como entrada.</p>
+  <p data-i18n="t44"><strong>FSC final:</strong> el modelo Excel toma el promedio de las salidas de las iteraciones 3 y 4 como $FSC_{final} = \\frac{FSC^{(3)} + FSC^{(4)}}{2}$. La herramienta recalcula una última vez el flujo de caja, el IMO, el PIT y la utilidad con este valor promediado para obtener el PTV final.</p>
+
+  <div class="equation-block" style="background: var(--accent-tint); border-color: color-mix(in oklab, var(--accent) 20%, transparent);">
+    $$FSC_{final} = \frac{FSC^{(3)} + FSC^{(4)}}{2}$$
+  </div>
+
+  <h2 data-i18n="t45">10. Análisis de mercado: PTV vs. PCM</h2>
+  <p data-i18n="t46">
+    El precio técnico de venta ($PTV$) representa el precio mínimo que cubre todos los costos, riesgos y la utilidad esperada del proyecto.
+    Sin embargo, en el mercado real el inmueble puede ofertarse o venderse a un precio distinto: el <strong>Precio Comercial de Mercado ($PCM$)</strong>,
+    ingresado manualmente por el usuario.
+  </p>
+
+  <div class="equation-block" style="background: var(--accent-tint); border-color: color-mix(in oklab, var(--accent) 20%, transparent);">
+    $$PTV = CD \times FSC$$
+  </div>
+
+  <div class="equation-block">
+    $$DM = PCM - PTV$$
+  </div>
+
+  <p data-i18n="t47">El <strong>Diferencial de Mercado ($DM$)</strong> permite evaluar la razonabilidad del precio comercial:</p>
+
+  <table class="defs" data-i18n="t48">
+    <thead><tr><th>Condición</th><th>Interpretación</th></tr></thead>
+    <tbody>
+      <tr><td>$DM > 0$ y $|DM| > 0{,}02 \times PTV$</td><td>El PCM está <strong>por encima</strong> del precio técnico. Mayor margen comercial.</td></tr>
+      <tr><td>$DM < 0$ y $|DM| > 0{,}02 \times PTV$</td><td>El PCM está <strong>por debajo</strong> del precio técnico. Riesgo de pérdida o utilidad insuficiente.</td></tr>
+      <tr><td>$|DM| \leq 0{,}02 \times PTV$ o $|DM| \leq 5{,}000$ RD$</td><td>El PCM está <strong>alineado</strong> con el precio técnico dentro del margen de tolerancia.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note" data-i18n="t49">
+    <strong>Uso en la tesis:</strong> esta comparación demuestra que la herramienta no solo calcula el FSC, sino que también sirve como análisis de razonabilidad del precio de mercado, conectando la teoría de costos con la práctica comercial.
+  </div>
+
+  <h2 data-i18n="t50">11. ITBIS — escenarios fiscales</h2>
+  <p data-i18n="t51">El ITBIS no se integra rígidamente al FSC porque su tratamiento varía según el régimen. Se presentan cinco escenarios de referencia:</p>
+
+  <table class="defs" data-i18n="t52">
+    <thead><tr><th>Escenario</th><th>ITBIS aplicado</th><th>Observación</th></tr></thead>
+    <tbody>
+      <tr><td>Contratista con código tributario</td><td>$ITBIS \times PTV$</td><td>El ITBIS pagado en compras se compensa contra el cobrado al cliente.</td></tr>
+      <tr><td>Dueño-promotor-constructor</td><td>$0$</td><td>No hay facturación por servicios; el ITBIS pagado en insumos se asume como costo.</td></tr>
+      <tr><td>Zona franca con carta</td><td>$0$</td><td>Régimen especial sin ITBIS para la operación calificada.</td></tr>
+      <tr><td>Norma 07-2007</td><td>$ITBIS \times 0.10 \times PTV$</td><td>Para servicios profesionales: ITBIS sobre el 10 % del monto facturado.</td></tr>
+      <tr><td>Vivienda tasa cero</td><td>$0$</td><td>Programa social — tratamiento confirmable con asesor fiscal.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note" data-i18n="t53">
+    <strong>Nota fiscal:</strong> los parámetros de ITBIS deben validarse con asesor fiscal actualizado al año del contrato. La Norma 07-2007 es referencial para servicios profesionales incluida ingeniería.
+  </div>
+
+  <h2 data-i18n="t54">12. Referencias</h2>
+  <p data-i18n="t55">
+    Suárez Salazar, C. (2005). <em>Administración de obras — Sistema de factor de sobrecosto para determinar el precio técnico de venta de un inmueble.</em><br/>
+    Adaptación a República Dominicana: Ing. Nayib Wessin Hazim — <em>Lowest-Wessin Inmobiliaria, E.I.R.L.</em>
+  </p>
+
+  <div class="footer-doc">
+    <span data-i18n="t56">Metodología: Suárez Salazar (2005) · Adaptación a República Dominicana</span>
+    <a href='/' data-i18n="t57">← Volver a la calculadora</a>
+  </div>
+
+</div>
+<script>
+(function () {
+  var TITLES = { es: 'Documentación · Factor de Sobrecosto', en: 'Documentation · Overhead Factor' };
+  var EN = {
+    back: String.raw`← Back to the calculator`,
+    t1: String.raw`Overhead <em>Factor</em>`,
+    t2: String.raw`Mathematical documentation`,
+    t3: String.raw`Mathematical <em>documentation</em>`,
+    t4: String.raw`
+    Complete reference of the equations underlying the calculation of the Overhead Factor (FSC)
+    used to determine the technical selling price of real estate in the Dominican Republic.
+    Based on the methodology of <strong>Suárez Salazar (2005)</strong>, adapted to the Dominican tax and professional-association context.
+  `,
+    t5: String.raw`1. System variables`,
+    t6: String.raw`
+    <thead><tr><th>Variable</th><th>Meaning</th><th>Unit</th></tr></thead>
+    <tbody>
+      <tr><td>$CD$</td><td>Direct Construction Cost — sum of materials, labor and equipment</td><td>RD$</td></tr>
+      <tr><td>$CO$</td><td>Operating indirect cost (head office)</td><td>fraction</td></tr>
+      <tr><td>$CC$</td><td>Field (site) indirect cost</td><td>fraction</td></tr>
+      <tr><td>$CI$</td><td>Contingencies</td><td>fraction</td></tr>
+      <tr><td>$TPA$</td><td>Annualized deposit rate</td><td>annual fraction</td></tr>
+      <tr><td>$REA$</td><td>Annualized business risk</td><td>annual fraction</td></tr>
+      <tr><td>$TEA$</td><td>Annualized technology and research</td><td>annual fraction</td></tr>
+      <tr><td>$ISR$</td><td>Income tax</td><td>fraction</td></tr>
+      <tr><td>$SGND$</td><td>Sum of non-deductible expenses</td><td>RD$</td></tr>
+      <tr><td>$T_{activa}$</td><td>Annual lending rate (cost of financing a deficit)</td><td>annual fraction</td></tr>
+      <tr><td>$T_{pasiva}$</td><td>Annual deposit rate on positive balances</td><td>annual fraction</td></tr>
+      <tr><td>$\alpha$</td><td>Advance payment percentage</td><td>fraction of PTV</td></tr>
+      <tr><td>$\delta$</td><td>Miscellaneous deductions on progress billings</td><td>fraction of PTV</td></tr>
+      <tr><td>$d$</td><td>Construction duration</td><td>months</td></tr>
+      <tr><td>$CODIA$</td><td>Dues to the Dominican Association of Engineers and Architects (CODIA)</td><td>fraction</td></tr>
+      <tr><td>$FON$</td><td>Construction Workers' Pension Fund</td><td>fraction</td></tr>
+      <tr><td>$ITBIS$</td><td>Tax on the Transfer of Industrialized Goods and Services (Dominican VAT)</td><td>fraction</td></tr>
+      <tr><td>$PCM$</td><td>Market Commercial Price — actual asking or sale price of the property</td><td>RD$</td></tr>
+      <tr><td>$DM$</td><td>Market Differential — difference between PCM and PTV</td><td>RD$</td></tr>
+    </tbody>
+  `,
+    t7: String.raw`2. Technical Selling Price and progress billings`,
+    t8: String.raw`The technical selling price is defined as the direct cost multiplied by the overhead factor:`,
+    t9: String.raw`The model uses two independent schedules:`,
+    t10: String.raw`
+    <li><strong>Expenditure schedule</strong> $a_m$: monthly distribution of physical progress (execution). It controls when costs are incurred.</li>
+    <li><strong>Revenue schedule</strong> $b_m$: monthly distribution of collections from progress billings. It controls when cash comes in.</li>
+  `,
+    t11: String.raw`3. Monthly revenue`,
+    t12: String.raw`Project revenue comes from the initial advance payment and from progress-billing collections, less advance-payment amortization and contractual deductions.`,
+    t13: String.raw`Initial advance payment`,
+    t14: String.raw`Progress-billing collections`,
+    t15: String.raw`Collections are driven directly by the revenue schedule $b_m$:`,
+    t16: String.raw`Advance-payment amortization and deductions`,
+    t17: String.raw`Total revenue`,
+    t18: String.raw`4. Monthly expenditures`,
+    t19: String.raw`Expenditures comprise the distributed direct cost, head-office and field indirect costs, and contingencies.`,
+    t20: String.raw`Monthly direct cost`,
+    t21: String.raw`Indirect expenses`,
+    t22: String.raw`Applied only during the $d$ months of construction:`,
+    t23: String.raw`5. Cash flow`,
+    t24: String.raw`The month-by-month partial difference and its cumulative total:`,
+    t25: String.raw`
+    <strong>Maximum Project Investment (IMO):</strong> the lowest point of the $DIFA$ curve represents the maximum capital exposure.
+    $$IMO = \bigl| \min_m DIFA_m \bigr|$$
+  `,
+    t26: String.raw`6. Financing`,
+    t27: String.raw`When the cumulative cash flow is positive, the balance earns interest at the deposit rate. When it is negative, interest is paid at the lending rate to finance it.`,
+    t28: String.raw`Deposit interest (income)`,
+    cases1: String.raw`
+        $$FPAS_m = \begin{cases} DIFA_m \times \dfrac{T_{pasiva}}{12} & \text{if } DIFA_m > 0 \\ 0 & \text{if } DIFA_m \leq 0 \end{cases}$$
+      `,
+    t29: String.raw`Positive balance → earns`,
+    t30: String.raw`Lending interest (cost)`,
+    cases2: String.raw`
+        $$FACT_m = \begin{cases} DIFA_m \times \dfrac{T_{activa}}{12} & \text{if } DIFA_m < 0 \\ 0 & \text{if } DIFA_m \geq 0 \end{cases}$$
+      `,
+    t31: String.raw`Deficit → pays`,
+    t32: String.raw`Partial and cumulative financing`,
+    t33: String.raw`Total Interest Paid (PIT)`,
+    t34: String.raw`Financing factor`,
+    t35: String.raw`7. Technical profit`,
+    t36: String.raw`Profit is derived from the total annual rate, capital turnover and tax considerations.`,
+    t37: String.raw`
+    <strong>Bid Profit (UC):</strong> the profit percentage that must be included in the technical selling price so that, after paying ISR, the company achieves the expected return $(TAT)$ while offsetting non-deductible expenses.
+  `,
+    t38: String.raw`8. Progressive build-up of the FSC`,
+    t39: String.raw`The Overhead Factor is built by incrementally adding each cost and indirect component on top of the direct-cost base.`,
+    t40: String.raw`9. Iterative process`,
+    t41: String.raw`The FSC calculation is inherently circular: the factor depends on the technical selling price, but the technical selling price depends on the factor. It is solved by successive iterations:`,
+    t42: String.raw`<strong>Iteration 1:</strong> start from an assumed initial factor $FSC_0$ (typically 1.20–1.40).`,
+    t43: String.raw`<strong>Iterations 2–4:</strong> each new iteration uses the $FSC$ computed in the previous iteration as its input.`,
+    t44: String.raw`<strong>Final FSC:</strong> the Excel model takes the average of the outputs of iterations 3 and 4 as $FSC_{final} = \\frac{FSC^{(3)} + FSC^{(4)}}{2}$. The tool then recalculates the cash flow, IMO, PIT and profit one last time with this averaged value to obtain the final PTV.`,
+    t45: String.raw`10. Market analysis: PTV vs. PCM`,
+    t46: String.raw`
+    The technical selling price ($PTV$) is the minimum price that covers all of the project's costs, risks and expected profit.
+    In the real market, however, the property may be offered or sold at a different price: the <strong>Market Commercial Price ($PCM$)</strong>,
+    entered manually by the user.
+  `,
+    t47: String.raw`The <strong>Market Differential ($DM$)</strong> makes it possible to assess how reasonable the commercial price is:`,
+    t48: String.raw`
+    <thead><tr><th>Condition</th><th>Interpretation</th></tr></thead>
+    <tbody>
+      <tr><td>$DM > 0$ and $|DM| > 0.02 \times PTV$</td><td>The PCM is <strong>above</strong> the technical price. Higher commercial margin.</td></tr>
+      <tr><td>$DM < 0$ and $|DM| > 0.02 \times PTV$</td><td>The PCM is <strong>below</strong> the technical price. Risk of loss or insufficient profit.</td></tr>
+      <tr><td>$|DM| \leq 0.02 \times PTV$ or $|DM| \leq 5{,}000$ RD$</td><td>The PCM is <strong>aligned</strong> with the technical price within the tolerance margin.</td></tr>
+    </tbody>
+  `,
+    t49: String.raw`
+    <strong>Use in the thesis:</strong> this comparison shows that the tool not only calculates the FSC but also serves as a reasonableness check on the market price, connecting cost theory with commercial practice.
+  `,
+    t50: String.raw`11. ITBIS — tax scenarios`,
+    t51: String.raw`ITBIS is not rigidly built into the FSC because its treatment varies by tax regime. Five reference scenarios are presented:`,
+    t52: String.raw`
+    <thead><tr><th>Scenario</th><th>ITBIS applied</th><th>Remarks</th></tr></thead>
+    <tbody>
+      <tr><td>Contractor with tax ID</td><td>$ITBIS \times PTV$</td><td>ITBIS paid on purchases is offset against ITBIS charged to the client.</td></tr>
+      <tr><td>Owner-developer-builder</td><td>$0$</td><td>No services are invoiced; ITBIS paid on inputs is absorbed as a cost.</td></tr>
+      <tr><td>Free zone with authorization letter</td><td>$0$</td><td>Special regime with no ITBIS for the qualifying operation.</td></tr>
+      <tr><td>Norm 07-2007</td><td>$ITBIS \times 0.10 \times PTV$</td><td>For professional services: ITBIS on 10% of the invoiced amount.</td></tr>
+      <tr><td>Zero-rate housing</td><td>$0$</td><td>Social program — treatment to be confirmed with a tax advisor.</td></tr>
+    </tbody>
+  `,
+    t53: String.raw`
+    <strong>Tax note:</strong> ITBIS parameters should be validated with a tax advisor, current as of the contract year. Norm 07-2007 is a reference for professional services, including engineering.
+  `,
+    t54: String.raw`12. References`,
+    t55: String.raw`
+    Suárez Salazar, C. (2005). <em>Administración de obras — Sistema de factor de sobrecosto para determinar el precio técnico de venta de un inmueble.</em> [Construction management — Overhead factor system for determining the technical selling price of a property.]<br/>
+    Adaptation for the Dominican Republic: Eng. Nayib Wessin Hazim — <em>Lowest-Wessin Inmobiliaria, E.I.R.L.</em>
+  `,
+    t56: String.raw`Methodology: Suárez Salazar (2005) · Adapted for the Dominican Republic`,
+    t57: String.raw`← Back to the calculator`
+  };
+
+  var nodes = Array.prototype.slice.call(document.querySelectorAll('[data-i18n]'));
+  // Capture the Spanish source (pre-KaTeX; this script runs before the deferred KaTeX scripts).
+  var ES = {};
+  nodes.forEach(function (el) { ES[el.getAttribute('data-i18n')] = el.innerHTML; });
+
+  var KATEX_OPTS = { delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }] };
+  var current = 'es';
+
+  function pickInitial() {
+    var q = null;
+    try { q = new URLSearchParams(location.search).get('lang'); } catch (e) {}
+    if (q === 'en' || q === 'es') return q;
+    try {
+      var s = localStorage.getItem('fsc-lang');
+      if (s === 'en' || s === 'es') return s;
+    } catch (e) {}
+    return 'es';
+  }
+
+  function apply(lang) {
+    var dict = lang === 'en' ? EN : ES;
+    var changed = lang !== current;
+    current = lang;
+    if (changed) {
+      nodes.forEach(function (el) {
+        var k = el.getAttribute('data-i18n');
+        if (dict[k] == null) return;
+        el.innerHTML = dict[k];
+        if (typeof window.renderMathInElement === 'function') window.renderMathInElement(el, KATEX_OPTS);
+      });
+    }
+    document.documentElement.lang = lang;
+    document.title = TITLES[lang];
+    Array.prototype.forEach.call(document.querySelectorAll('.lang-switch button'), function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-lang') === lang ? 'true' : 'false');
+    });
+  }
+
+  function setLang(lang) {
+    apply(lang);
+    try { localStorage.setItem('fsc-lang', lang); } catch (e) {}
+    try {
+      var u = new URL(location.href);
+      u.searchParams.set('lang', lang);
+      history.replaceState(history.state, '', u.pathname + u.search + u.hash);
+    } catch (e) {}
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.lang-switch button'), function (b) {
+    b.addEventListener('click', function () { setLang(b.getAttribute('data-lang')); });
+  });
+
+  apply(pickInitial());
+})();
+</script>
+  <script src="/fsc-assistant.js" defer></script>
+</body>
+</html>
