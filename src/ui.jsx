@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { usePrefs, useT, makeMoney, CURRENCIES, localeFor } from './prefs.jsx';
+import { usePrefs, useT, makeMoney, CURRENCIES, localeFor, toCurrency, fromCurrency } from './prefs.jsx';
 
 // Calculate current % position of a slider for the gradient fill
 export function rangeBg(value, min, max) {
@@ -106,18 +106,18 @@ export function Slider({ label, value, min, max, step, onChange, format, hint, k
 }
 
 // Campo de monto con selector de moneda propio (RD$ / US$). El valor siempre
-// entra y sale en DOP; el selector solo cambia la unidad en que se escribe.
+// entra y sale en la moneda base del caso; el selector solo cambia la unidad
+// en que se escribe.
 // Arranca en la moneda global y la sigue cuando esta cambia.
 export function MoneyInput({ label, value, onChange, hint, big }) {
   const t = useT();
-  const { currency, rate, lang } = usePrefs();
+  const { currency, rate, lang, base } = usePrefs();
   const [unit, setUnit] = useState(currency);
   useEffect(() => setUnit(currency), [currency]);
   const [txt, setTxt] = useState(null);
   const locale = localeFor(lang);
-  const factor = unit === "USD" ? rate : 1;
-  const shown = (value || 0) / factor;
-  const other = makeMoney(unit === "USD" ? "DOP" : "USD", rate, lang);
+  const shown = toCurrency(value || 0, unit, rate, base);
+  const other = makeMoney(unit === "USD" ? "DOP" : "USD", rate, lang, base);
 
   const parse = (raw) => {
     const n = parseFloat(String(raw).replace(/[^\d.\-]/g, ""));
@@ -126,7 +126,7 @@ export function MoneyInput({ label, value, onChange, hint, big }) {
   const handleChange = (raw) => {
     setTxt(raw);
     const n = parse(raw);
-    onChange(n === null ? 0 : n * factor);
+    onChange(n === null ? 0 : fromCurrency(n, unit, rate, base));
   };
 
   return (

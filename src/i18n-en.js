@@ -271,4 +271,11 @@ export const EN = {
   "Base (CD)": "Base (CD)",
   "F. Pensiones": "Pension F.",
   "Saldo acumulado (DIFA)": "Cumulative balance (DIFA)",
+  "¿En qué moneda están los importes de este caso?": "What currency are this case's amounts in?",
+  "El caso no indica su moneda base. Confírmala para mostrar los montos correctamente. No se convierte ningún valor.": "This case doesn't state its base currency. Confirm it so amounts display correctly. No values are converted.",
+  "Pesos dominicanos (RD$)": "Dominican pesos (RD$)",
+  "Dólares (US$)": "US dollars (US$)",
+  "Moneda base del caso": "Case base currency",
+  "Moneda en que están escritos los importes. Cambiarla no convierte valores.": "Currency the amounts are written in. Changing it doesn't convert values.",
+  "Los importes no se convertirán: solo cambia la moneda en que se identifican. ¿Continuar?": "Amounts won't be converted: only the currency they're labeled in changes. Continue?",
 };

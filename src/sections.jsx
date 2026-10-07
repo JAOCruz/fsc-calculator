@@ -1,6 +1,6 @@
 import { fmtPct, makeDefaultAvance, makeDefaultCobros } from './calc.js';
 import { useT, useMoney } from './prefs.jsx';
-import { Step, Slider, MoneyInput, SegmentedControl, rangeBg, NumField } from './ui.jsx';
+import { Step, Slider, MoneyInput, SegmentedControl, rangeBg, NumField, CurrencyToggle } from './ui.jsx';
 import { SCurve } from './viz.jsx';
 
 export function StepProyecto({ params, setParam, projectName, setProjectName }) {
@@ -85,7 +85,37 @@ export function StepProyecto({ params, setParam, projectName, setProjectName }) 
           <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>{t("RD$ por cada US$ 1")}</div>
         </div>
       </div>
+
+      <div style={{
+        display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap",
+        marginTop: 12, padding: "12px 16px", background: "var(--bg-paper)",
+        borderRadius: 8, border: "1px solid var(--rule)",
+      }}>
+        <BaseToggle params={params} setParam={setParam} t={t} />
+        <div style={{ flex: "1 1 220px" }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 2 }}>
+            {t("Moneda base del caso")}
+          </div>
+          <div style={{ fontSize: 11, color: "var(--ink-3)" }}>
+            {t("Moneda en que están escritos los importes. Cambiarla no convierte valores.")}
+          </div>
+        </div>
+      </div>
     </Step>
+  );
+}
+
+// Selector de la moneda base del caso: cambiarla solo reidentifica los importes.
+function BaseToggle({ params, setParam, t }) {
+  return (
+    <CurrencyToggle
+      value={params.MONEDA_BASE || "DOP"}
+      onChange={(m) => {
+        if (m === params.MONEDA_BASE) return;
+        if (!confirm(t("Los importes no se convertirán: solo cambia la moneda en que se identifican. ¿Continuar?"))) return;
+        setParam("MONEDA_BASE", m);
+      }}
+    />
   );
 }
 

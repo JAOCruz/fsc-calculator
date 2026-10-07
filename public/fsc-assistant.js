@@ -132,6 +132,7 @@
         PCM: params.PCM,
         TIPO_OBRA_CODIA: params.TIPO_OBRA_CODIA,
         TASA_CAMBIO: params.TASA_CAMBIO,
+        MONEDA_BASE: params.MONEDA_BASE === 'USD' ? 'USD' : 'DOP',
         lang: getLang(),
         currency: localStorage.getItem('fsc-currency') === 'USD' ? 'USD' : 'DOP',
         avance,

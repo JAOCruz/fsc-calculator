@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { fmtPct, fmtFactor, DEFAULTS, DEFAULT_AVANCE, DEFAULT_COBROS, makeDefaultCobros, normalizeCobros, iterateFSC, EXAMPLES } from './calc.js';
+import { fmtPct, fmtFactor, DEFAULTS, DEFAULT_AVANCE, DEFAULT_COBROS, makeDefaultCobros, normalizeCobros, iterateFSC, EXAMPLES, mergeParams } from './calc.js';
 import { Stat, Def, Step, CurrencyToggle } from './ui.jsx';
 import { PrefsProvider, useT, useMoney, localeFor, translate } from './prefs.jsx';
 import { WaterfallFSC, CashFlowChart, Convergence, FSCGauge } from './viz.jsx';
@@ -46,7 +46,7 @@ export default function App() {
   const [params, setParams] = useState(() => {
     try {
       const saved = localStorage.getItem("fsc-current-params");
-      if (saved) return { ...DEFAULTS, ...JSON.parse(saved) };
+      if (saved) return mergeParams(JSON.parse(saved));
     } catch (e) {}
     return DEFAULTS;
   });
@@ -98,7 +98,9 @@ export default function App() {
   }, []);
 
   const handleImport = useCallback(({ projectName: name, params: importedParams, avance: importedAvance, cobros: importedCobros }) => {
-    const mergedParams = { ...DEFAULTS, ...importedParams };
+    // Sin MONEDA_BASE en el archivo, mergeParams la deja pendiente y se pide
+    // confirmarla; los importes nunca se convierten.
+    const mergedParams = mergeParams(importedParams);
     const normCobros = normalizeCobros(importedCobros || DEFAULT_COBROS, mergedParams.ANTICIPO);
     setProjectName(name || t("Proyecto importado"));
     setParams(mergedParams);
@@ -111,6 +113,11 @@ export default function App() {
       localStorage.setItem("fsc-current-cobros", JSON.stringify(normCobros));
     } catch (e) {}
   }, [t]);
+
+  // Los montos se muestran por defecto en la moneda base del caso.
+  useEffect(() => {
+    if (params.MONEDA_BASE) setCurrency(params.MONEDA_BASE);
+  }, [params.MONEDA_BASE]);
 
   // Persist
   useEffect(() => {
@@ -264,7 +271,7 @@ export default function App() {
     setSavedScenarios((s) => [scenario, ...s].slice(0, 50));
   };
   const loadScenario = (sc) => {
-    const merged = { ...DEFAULTS, ...sc.params };
+    const merged = mergeParams(sc.params);
     setParams(merged);
     setAvance(sc.avance);
     setCobros(normalizeCobros(sc.cobros || DEFAULT_COBROS, merged.ANTICIPO));
@@ -272,7 +279,7 @@ export default function App() {
     setScenarioMenuOpen(false);
   };
   const loadAutoSaved = (entry) => {
-    const merged = { ...DEFAULTS, ...entry.params };
+    const merged = mergeParams(entry.params);
     setParams(merged);
     setAvance(entry.avance);
     setCobros(normalizeCobros(entry.cobros || DEFAULT_COBROS, merged.ANTICIPO));
@@ -291,8 +298,11 @@ export default function App() {
   };
 
   return (
-    <PrefsProvider lang={lang} currency={currency} rate={params.TASA_CAMBIO}>
+    <PrefsProvider lang={lang} currency={currency} rate={params.TASA_CAMBIO} base={params.MONEDA_BASE}>
     <div className="shell">
+      {!params.MONEDA_BASE && (
+        <BaseCurrencyPrompt projectName={projectName} onConfirm={(m) => setParam("MONEDA_BASE", m)} />
+      )}
       <Header
         lang={lang}
         setLang={setLang}
@@ -545,6 +555,42 @@ function exportCase({ projectName, params, avance, cobros, final, iterations, fs
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// Casos guardados o importados sin moneda base: se pide confirmar en qué
+// moneda están escritos sus importes. Elegir no convierte ningún valor.
+function BaseCurrencyPrompt({ projectName, onConfirm }) {
+  const t = useT();
+  const btn = {
+    flex: 1, padding: "12px 10px", fontSize: 14, borderRadius: 8, cursor: "pointer",
+    border: "1px solid var(--rule-strong)", background: "var(--card)", color: "var(--ink)",
+  };
+  return (
+    <div role="dialog" aria-modal="true" aria-labelledby="fsc-base-title" style={{
+      position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,.45)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+    }}>
+      <div style={{
+        maxWidth: 440, width: "100%", background: "var(--bg)", color: "var(--ink)",
+        borderRadius: 12, border: "1px solid var(--rule)", padding: "22px 22px 18px",
+        boxShadow: "0 20px 60px rgba(0,0,0,.25)",
+      }}>
+        <div id="fsc-base-title" style={{ fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
+          {t("¿En qué moneda están los importes de este caso?")}
+        </div>
+        <div style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5, marginBottom: 6 }}>
+          <b>{projectName}</b>
+        </div>
+        <div style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5, marginBottom: 16 }}>
+          {t("El caso no indica su moneda base. Confírmala para mostrar los montos correctamente. No se convierte ningún valor.")}
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button type="button" style={btn} onClick={() => onConfirm("DOP")}>{t("Pesos dominicanos (RD$)")}</button>
+          <button type="button" style={btn} onClick={() => onConfirm("USD")}>{t("Dólares (US$)")}</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function importCase(e, onImport, t) {

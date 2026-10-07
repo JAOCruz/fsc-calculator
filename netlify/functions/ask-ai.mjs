@@ -27,7 +27,7 @@ Conceptos del modelo:
 Reglas:
 - Responde de forma clara, concreta y breve (máximo ~250 palabras salvo que pidan detalle). Usa **negritas** para cifras clave.
 - Cuando haya datos del proyecto, úsalos y cita las cifras. No inventes datos que no estén en el contexto.
-- Los montos del contexto están en pesos dominicanos (DOP). Si el usuario trabaja en USD, convierte usando la tasa de cambio indicada.
+- Los montos del contexto están en la moneda base del caso (MONEDA_BASE: DOP o USD), sin convertir. Si hace falta la otra moneda, convierte con la tasa de cambio indicada (RD$ por US$ 1).
 - Tus recomendaciones son apoyo analítico: recuerda validar parámetros fiscales y financieros con Contabilidad/Finanzas o un asesor cuando corresponda.`;
 
 const LANG_RULE = {
@@ -38,7 +38,8 @@ const LANG_RULE = {
 function describeContext(ctx) {
   if (!ctx || typeof ctx !== "object") return "No hay datos del proyecto disponibles (la calculadora aún no tiene un resultado válido).";
   const { avance, cobros, iterations, cashFlow, ...rest } = ctx;
-  const lines = ["Datos actuales de la calculadora (montos en DOP, tasas como fracción):", JSON.stringify(rest)];
+  const base = rest.MONEDA_BASE === "USD" ? "USD" : "DOP";
+  const lines = [`Datos actuales de la calculadora (montos en ${base}, tasas como fracción):`, JSON.stringify(rest)];
   if (Array.isArray(avance) && avance.length) lines.push("Avance mensual de egresos: " + JSON.stringify(avance));
   if (Array.isArray(cobros) && cobros.length) lines.push("Cobros mensuales netos (M1 = anticipo): " + JSON.stringify(cobros));
   if (cashFlow && Array.isArray(cashFlow.DIFA)) lines.push("Saldo acumulado mensual (DIFA): " + JSON.stringify(cashFlow.DIFA.map((v) => Math.round(v))));
@@ -148,7 +149,15 @@ export default async (req) => {
   const lang = ctx?.lang === "en" ? "en" : "es";
   const extra = [];
   if (ctx?.TASA_CAMBIO) extra.push(`Tasa de cambio: RD$ ${ctx.TASA_CAMBIO} por US$ 1.`);
-  if (ctx?.currency === "USD") extra.push("El usuario está viendo los montos en dólares (USD): presenta las cifras en US$ (y en RD$ si ayuda).");
+  const base = ctx?.MONEDA_BASE === "USD" ? "USD" : "DOP";
+  extra.push(base === "USD"
+    ? "Moneda base del caso: dólares (USD). Los importes ya están en US$: no los conviertas de nuevo."
+    : "Moneda base del caso: pesos dominicanos (DOP).");
+  if (ctx?.currency && ctx.currency !== base) {
+    extra.push(ctx.currency === "USD"
+      ? "El usuario está viendo los montos en dólares (USD): presenta las cifras en US$ (y en RD$ si ayuda)."
+      : "El usuario está viendo los montos en pesos (DOP): presenta las cifras en RD$ (y en US$ si ayuda).");
+  }
   const system = [SYSTEM_ES, LANG_RULE[lang], ...extra, describeContext(ctx)].join("\n\n");
   const history = cleanHistory(body.history);
 

@@ -194,6 +194,9 @@ export const DEFAULTS = {
   PCM: 0,
   // RD$ por US$ 1 — solo para mostrar/escribir montos en dólares; editable en el paso 01
   TASA_CAMBIO: 63.0,
+  // Moneda en que están escritos los importes del caso. No interviene en el
+  // cálculo: solo dice cómo identificarlos y desde dónde convertir al mostrar.
+  MONEDA_BASE: "DOP",
 };
 
 export const DEFAULT_AVANCE = [0.05, 0.20, 0.40, 0.20, 0.15, 0, 0, 0, 0, 0, 0, 0];
@@ -278,3 +281,14 @@ export const EXAMPLES = {
   comercial: EXAMPLE_COMERCIAL,
   publica: EXAMPLE_PUBLICA,
 };
+
+export const MONEDAS = ["DOP", "USD"];
+
+// Mezcla parámetros guardados o importados con los valores por defecto sin
+// suponer moneda: si el caso no trae MONEDA_BASE válida queda en null para que
+// el usuario la confirme. Nunca convierte importes.
+export function mergeParams(raw) {
+  const merged = { ...DEFAULTS, ...(raw || {}) };
+  if (!MONEDAS.includes(raw?.MONEDA_BASE)) merged.MONEDA_BASE = null;
+  return merged;
+}
