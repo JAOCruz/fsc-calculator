@@ -13,8 +13,11 @@ export function NumField({ value, min, max, scale = 1, onCommit, format, accent,
   const t = useT();
   const [txt, setTxt] = useState(null);
   const cancelRef = useRef(false);
+  const startRef = useRef(null);
   const commit = (raw) => {
     if (cancelRef.current) { cancelRef.current = false; setTxt(null); return; }
+    // Si no se editó, no se reescribe: así no se redondea ni se recorta el valor guardado.
+    if (String(raw) === startRef.current) { setTxt(null); return; }
     let s = String(raw).trim().replace(/[^\d,.\-]/g, "");
     if (s.includes(".") && s.includes(",")) s = s.replace(/,/g, "");
     else if (s.includes(",")) s = s.replace(",", ".");
@@ -33,7 +36,12 @@ export function NumField({ value, min, max, scale = 1, onCommit, format, accent,
       inputMode="decimal"
       className="num"
       value={txt !== null ? txt : (format ? format(value) : value)}
-      onFocus={(e) => { setTxt(String(+(value * scale).toFixed(6))); setTimeout(() => e.target.select(), 0); }}
+      onFocus={(e) => {
+        const start = String(+(value * scale).toFixed(6));
+        startRef.current = start;
+        setTxt(start);
+        setTimeout(() => e.target.select(), 0);
+      }}
       onChange={(e) => setTxt(e.target.value)}
       onBlur={(e) => commit(e.target.value)}
       onKeyDown={(e) => {
@@ -53,8 +61,11 @@ export function NumField({ value, min, max, scale = 1, onCommit, format, accent,
   );
 }
 
-export function Slider({ label, value, min, max, step, onChange, format, hint, kbd, accent }) {
+export function Slider({ label, value, min, max: maxScale, step, onChange, format, hint, kbd, accent }) {
   const t = useT();
+  // La escala se amplía si el valor guardado o importado la supera: el valor se
+  // muestra y se conserva tal cual, nunca se recorta al máximo de la escala.
+  const max = Math.max(maxScale, value || 0);
   const [showHint, setShowHint] = useState(false);
   // Si el formato es porcentual, el campo acepta el número en puntos porcentuales (ej. 6.5 = 6.5%)
   const numScale = format && /%/.test(format(value)) ? 100 : 1;
@@ -105,19 +116,17 @@ export function Slider({ label, value, min, max, step, onChange, format, hint, k
   );
 }
 
-// Campo de monto con selector de moneda propio (RD$ / US$). El valor siempre
-// entra y sale en la moneda base del caso; el selector solo cambia la unidad
-// en que se escribe.
+// Campo de monto. El valor entra y sale en la moneda base del caso y se muestra
+// en la moneda elegida arriba; si es distinta de la base, se indica el importe
+// original en la moneda del caso.
 // Arranca en la moneda global y la sigue cuando esta cambia.
 export function MoneyInput({ label, value, onChange, hint, big }) {
   const t = useT();
-  const { currency, rate, lang, base } = usePrefs();
-  const [unit, setUnit] = useState(currency);
-  useEffect(() => setUnit(currency), [currency]);
+  const { currency: unit, rate, lang, base } = usePrefs();
   const [txt, setTxt] = useState(null);
   const locale = localeFor(lang);
   const shown = toCurrency(value || 0, unit, rate, base);
-  const other = makeMoney(unit === "USD" ? "DOP" : "USD", rate, lang, base);
+  const original = makeMoney(base, rate, lang, base);
 
   const parse = (raw) => {
     const n = parseFloat(String(raw).replace(/[^\d.\-]/g, ""));
@@ -131,12 +140,9 @@ export function MoneyInput({ label, value, onChange, hint, big }) {
 
   return (
     <div style={{ marginBottom: 18 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
-        {label ? (
-          <label style={{ fontSize: 13, color: "var(--ink-2)" }}>{label}</label>
-        ) : <span />}
-        <CurrencyToggle value={unit} onChange={(u) => { setUnit(u); setTxt(null); }} />
-      </div>
+      {label && (
+        <label style={{ display: "block", fontSize: 13, color: "var(--ink-2)", marginBottom: 6 }}>{label}</label>
+      )}
       <div style={{ position: "relative" }}>
         <span style={{
           position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
@@ -146,7 +152,7 @@ export function MoneyInput({ label, value, onChange, hint, big }) {
         <input
           type="text"
           inputMode="decimal"
-          value={txt !== null ? txt : shown.toLocaleString(locale, { maximumFractionDigits: 2 })}
+          value={txt !== null ? txt : shown.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           onFocus={(e) => { setTxt(String(+shown.toFixed(2))); setTimeout(() => e.target.select(), 0); }}
           onChange={(e) => handleChange(e.target.value)}
           onBlur={() => setTxt(null)}
@@ -163,9 +169,11 @@ export function MoneyInput({ label, value, onChange, hint, big }) {
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>
         <span>{hint}</span>
-        <span className="num" style={{ whiteSpace: "nowrap" }} title={t("Tasa de cambio: RD$ {rate} por US$ 1", { rate: rate.toFixed(2) })}>
-          ≈ {other.fmt(value)}
-        </span>
+        {unit !== base && (
+          <span className="num" style={{ whiteSpace: "nowrap" }}>
+            {t("Importe del caso: {v}", { v: original.fmt(value) })}
+          </span>
+        )}
       </div>
     </div>
   );

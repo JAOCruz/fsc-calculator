@@ -63,8 +63,9 @@ export function makeMoney(currency, rate, lang, base = "DOP") {
     });
   const fmtShort = (v) => {
     const n = toCurrency(Number(v || 0), currency, rate, base);
-    if (Math.abs(n) >= 1e6) return sym + " " + (n / 1e6).toFixed(2) + "M";
-    if (Math.abs(n) >= 1e3) return sym + " " + (n / 1e3).toFixed(1) + "K";
+    const short = (x, d) => x.toLocaleString(locale, { minimumFractionDigits: d, maximumFractionDigits: d });
+    if (Math.abs(n) >= 1e6) return sym + " " + short(n / 1e6, 2) + "M";
+    if (Math.abs(n) >= 1e3) return sym + " " + short(n / 1e3, 1) + "K";
     return sym + " " + n.toFixed(0);
   };
   return { fmt, fmtShort, sym, currency, rate, locale, base };

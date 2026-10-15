@@ -82,7 +82,7 @@ export function StepProyecto({ params, setParam, projectName, setProjectName }) 
             className="num"
             style={{ width: "100%", fontSize: 18, padding: "6px 10px", fontFamily: "var(--font-mono)" }}
           />
-          <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>{t("RD$ por cada US$ 1")}</div>
+          <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>{t("RD$ por cada US$ 1 · solo para ver equivalencias; no cambia importes ni los supuestos del caso")}</div>
         </div>
       </div>
 
@@ -118,6 +118,14 @@ function BaseToggle({ params, setParam, t }) {
     />
   );
 }
+
+// Porcentaje mensual: dos decimales, y más si el valor es muy pequeño, para
+// distinguir meses con importes pequeños de meses realmente en cero.
+const fmtMes = (v) => {
+  const p = v * 100;
+  if (!p) return "0%";
+  return (Math.abs(p) < 0.01 ? p.toFixed(4) : p.toFixed(2)) + "%";
+};
 
 export function StepCostos({ params, setParam }) {
   const t = useT();
@@ -383,7 +391,7 @@ export function StepCronograma({ params, setParam, avance, setAvance, avanceTota
 
       <div style={{
         display: "grid",
-        gridTemplateColumns: "32px 1fr 56px 110px",
+        gridTemplateColumns: "32px 1fr 74px 110px",
         gap: "6px 12px",
         alignItems: "center",
         fontSize: 13,
@@ -405,9 +413,9 @@ export function StepCronograma({ params, setParam, avance, setAvance, avanceTota
             />
             <NumField value={a} min={0} max={1} scale={100}
               onCommit={(v) => setMes(i, v)}
-              format={(v) => (v * 100).toFixed(0) + "%"}
+              format={fmtMes}
               color={a > 0 ? "var(--ink)" : "var(--ink-4)"}
-              width={60} fontSize={13} />
+              width={74} fontSize={13} />
             <div className="num" style={{ textAlign: "right", fontSize: 12, color: a > 0 ? "var(--ink-2)" : "var(--ink-4)" }}
               title={a > 0 ? t("Costo directo + imprevistos + gastos indirectos (CO + CC)") : t("Sin avance: solo gastos indirectos fijos del mes (CO + CC)")}>
               {fmtShort(egressForMonth(a, i))}
@@ -503,7 +511,7 @@ export function StepIngresos({ params, setParam, cobros, setCobros, cobrosTotal,
 
       <div style={{
         display: "grid",
-        gridTemplateColumns: "32px 1fr 56px 110px",
+        gridTemplateColumns: "32px 1fr 74px 110px",
         gap: "6px 12px",
         alignItems: "center",
         fontSize: 13,
@@ -551,9 +559,9 @@ export function StepIngresos({ params, setParam, cobros, setCobros, cobrosTotal,
               />
               <NumField value={a} min={0} max={1} scale={100}
                 onCommit={(v) => setMes(i, v)}
-                format={(v) => (v * 100).toFixed(0) + "%"}
+                format={fmtMes}
                 color={a > 0 ? "var(--ink)" : "var(--ink-4)"}
-                width={60} fontSize={13} />
+                width={74} fontSize={13} />
               <div className="num" style={{ textAlign: "right", fontSize: 12, color: a > 0 ? "var(--ink-2)" : "var(--ink-4)" }}
                 title={t("Lo que entra a caja en ese mes (% del PTV), ya neto de la amortización del anticipo. Los descuentos contractuales se ven aparte en el flujo de caja detallado.")}>
                 {a > 0 ? fmtShort(a * ptv) : "—"}

@@ -108,7 +108,9 @@
         projectName,
         CD: params.CD,
         PTV: final ? final.PTV : null,
-        FSC: final ? final.FSC : null,
+        // FSC aplicado al PTV (promedio de las iteraciones 3 y 4) y FSC del recálculo final.
+        FSC_APLICADO: final ? final.fscInput : null,
+        FSC_RECALCULO: final ? final.FSC : null,
         CO: params.CO,
         CC: params.CC,
         CI: params.CI,

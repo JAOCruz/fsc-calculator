@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { fmtPct, fmtFactor, DEFAULTS, DEFAULT_AVANCE, DEFAULT_COBROS, makeDefaultCobros, normalizeCobros, iterateFSC, EXAMPLES, mergeParams } from './calc.js';
 import { Stat, Def, Step, CurrencyToggle } from './ui.jsx';
-import { PrefsProvider, useT, useMoney, localeFor, translate } from './prefs.jsx';
+import { PrefsProvider, useT, useMoney, usePrefs, localeFor, translate, CURRENCIES } from './prefs.jsx';
 import { WaterfallFSC, CashFlowChart, Convergence, FSCGauge } from './viz.jsx';
 import {
   StepProyecto, StepCostos, StepTasas, StepFiscal,
@@ -265,7 +265,7 @@ export default function App() {
       params,
       avance,
       cobros,
-      fsc: final ? final.FSC : null,
+      fsc: final ? final.fscInput : null,
       ptv: final ? final.PTV : null,
     };
     setSavedScenarios((s) => [scenario, ...s].slice(0, 50));
@@ -322,6 +322,10 @@ export default function App() {
         deleteScenario={deleteScenario}
         resetAll={resetAll}
       />
+      {params.MONEDA_BASE && currency !== params.MONEDA_BASE && (
+        <ConversionNotice base={params.MONEDA_BASE} view={currency} rate={params.TASA_CAMBIO}
+          onBack={() => setCurrency(params.MONEDA_BASE)} />
+      )}
 
       <div className="layout">
         <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 36, alignItems: "start" }}>
@@ -385,9 +389,7 @@ function Header({ lang, setLang, currency, setCurrency, projectName, setProjectN
               }}>{l}</button>
           ))}
         </div>
-        <span title={t("Moneda en que se muestran todos los montos")}>
-          <CurrencyToggle value={currency} onChange={setCurrency} />
-        </span>
+        <CaseCurrency currency={currency} setCurrency={setCurrency} />
         <a href={lang === "en" ? "docs.html?lang=en" : "docs.html"} className="back-link" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--rule-strong)", background: "var(--card)", color: "var(--ink)", fontSize: 13, textDecoration: "none" }}>
           <i className="fa-solid fa-book-open"></i> {t("Docs")}
         </a>
@@ -557,6 +559,38 @@ function exportCase({ projectName, params, avance, cobros, final, iterations, fs
   URL.revokeObjectURL(url);
 }
 
+// Moneda del caso y moneda en que se ve. Ver en la otra moneda es una
+// conversión explícita, solo para visualizar.
+function CaseCurrency({ currency, setCurrency }) {
+  const t = useT();
+  const { base } = usePrefs();
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--ink-3)" }}
+      title={t("Los importes se guardan y calculan en la moneda del caso. Ver en la otra moneda solo convierte para visualizar.")}>
+      <span>{t("Caso en")} <b style={{ color: "var(--ink)", fontFamily: "var(--font-mono)" }}>{CURRENCIES[base].sym}</b> · {t("ver en")}</span>
+      <CurrencyToggle value={currency} onChange={setCurrency} />
+    </span>
+  );
+}
+
+function ConversionNotice({ base, view, rate, onBack }) {
+  const t = useT();
+  return (
+    <div role="status" style={{
+      position: "sticky", top: 0, zIndex: 50, margin: "0 0 12px",
+      padding: "8px 14px", borderRadius: 8, fontSize: 13,
+      background: "var(--accent-tint)", color: "var(--accent-ink)",
+      border: "1px solid color-mix(in oklab, var(--accent) 30%, transparent)",
+      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+    }}>
+      <span>{t("Viendo equivalencias en {view} a una tasa de {rate} RD$ por US$ 1. Los importes del caso están en {base} y no se modifican.", { view: CURRENCIES[view].sym, base: CURRENCIES[base].sym, rate: Number(rate).toFixed(2) })}</span>
+      <button type="button" onClick={onBack} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, border: "1px solid currentColor", background: "transparent", color: "inherit", cursor: "pointer" }}>
+        {t("Ver en {base}", { base: CURRENCIES[base].sym })}
+      </button>
+    </div>
+  );
+}
+
 // Casos guardados o importados sin moneda base: se pide confirmar en qué
 // moneda están escritos sus importes. Elegir no convierte ningún valor.
 function BaseCurrencyPrompt({ projectName, onConfirm }) {
@@ -665,7 +699,7 @@ function ResultsDock({ final, iterations, fscFinal, params, avance, cobros, avan
       {/* FSC gauge */}
       <div style={{ padding: "18px 16px 8px" }}>
         {final ? (
-          <FSCGauge value={final.FSC} />
+          <FSCGauge value={final.fscInput} />
         ) : (
           <div style={{ padding: "32px 8px", textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>
             <div style={{ fontFamily: "var(--font-serif)", fontSize: 22, marginBottom: 6, color: "var(--ink-2)" }}>—</div>
@@ -692,7 +726,7 @@ function ResultsDock({ final, iterations, fscFinal, params, avance, cobros, avan
               {fmt(final.PTV)}
             </div>
             <div style={{ fontSize: 11, color: "var(--accent-ink)", opacity: 0.75, marginTop: 4 }}>
-              CD × {fmtFactor(final.FSC)}
+              CD × {fmtFactor(final.fscInput)} · {t("FSC aplicado")}
             </div>
           </div>
 
@@ -834,7 +868,11 @@ function DockResumen({ final, params, codiaAplicado }) {
       <Def k={"+ CODIA (" + fmtPct(codiaAplicado, 3) + ")"} v={"+" + (final.FICOD - final.FIF).toFixed(4)} />
       <Def k={"+ " + t("Pensiones") + " FON (" + fmtPct(params.FON) + ")"} v={"+" + (final.FIFON - final.FICOD).toFixed(4)} />
       <Def k={"× (1 + UC=" + fmtPct(final.UC) + ")"} v={"+" + (final.FIU - final.FIFON).toFixed(4)} />
-      <Def k="= FSC" v={fmtFactor(final.FSC)} accent />
+      <Def k={"= " + t("FSC del recálculo final")} v={fmtFactor(final.FSC)} />
+      <Def k={t("FSC aplicado al PTV (promedio iter. 3 y 4)")} v={fmtFactor(final.fscInput)} accent />
+      <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 8, lineHeight: 1.5 }}>
+        {t("El PTV usa el FSC aplicado. Los componentes de arriba corresponden al recálculo con el flujo final; la diferencia muestra cuánto falta para converger.")}
+      </div>
     </div>
   );
 }
@@ -868,7 +906,7 @@ function DockIterations({ iterations, fscFinal }) {
           borderTop: "2px solid var(--rule)",
         }}>
           <span style={{ color: "var(--accent-ink)", fontFamily: "var(--font-mono)", fontWeight: 500 }}>
-            {t("FSC final = (iter. 3 + iter. 4) / 2")}
+            {t("FSC aplicado = (iter. 3 + iter. 4) / 2")}
           </span>
           <span className="num" style={{ color: "var(--accent)", fontWeight: 600 }}>
             {fmtFactor(fscFinal)}
@@ -969,9 +1007,10 @@ function ResultadoCompleto({ final, iterations, params, avance, avanceTotal, cob
       title={t("Lectura <em>completa</em>")}
       lede={t("Todos los componentes del FSC en su forma extensa, el flujo de caja mensual del proyecto y la convergencia iterativa del algoritmo.")}
     >
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
-        <Stat big accent label={t("FSC final")} value={fmtFactor(final.FSC)} sub={t("promedio iter. 3 y 4")} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 24 }}>
+        <Stat big accent label={t("FSC aplicado")} value={fmtFactor(final.fscInput)} sub={t("promedio iter. 3 y 4 · PTV = CD × FSC aplicado")} />
         <Stat big accent label="PTV" value={fmt(final.PTV)} sub={t("sobre CD = ") + fmt(params.CD)} />
+        <Stat big label={t("FSC del recálculo final")} value={fmtFactor(final.FSC)} sub={t("con el flujo final; no se usa para el PTV")} />
       </div>
 
       <h3 style={{ fontFamily: "var(--font-serif)", fontSize: 22, fontWeight: 400, margin: "0 0 12px" }}>
@@ -1017,7 +1056,7 @@ function ResultadoCompleto({ final, iterations, params, avance, avanceTotal, cob
         {t("Iteraciones del FSC")}
       </h3>
       <p style={{ fontSize: 13, color: "var(--ink-2)", marginTop: 0, marginBottom: 16 }}>
-        {t("El modelo corre 4 iteraciones de convergencia. El FSC final se calcula como el promedio de las iteraciones 3 y 4, y con ese valor se recalcula el flujo de caja final.")}
+        {t("El modelo corre 4 iteraciones de convergencia. El FSC aplicado es el promedio de las iteraciones 3 y 4; con él se calcula el PTV y se recalcula el flujo de caja final, del que resulta el FSC del recálculo final.")}
       </p>
       <div style={{ overflowX: "auto", marginBottom: 28 }}>
         <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", minWidth: 600 }}>

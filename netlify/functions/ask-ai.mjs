@@ -20,7 +20,7 @@ Conceptos del modelo:
 - CO: indirecto de operación (oficina central). CC: indirecto de campo. CI: imprevistos.
 - F: factor de financiamiento = PIT / CD, donde PIT son los intereses pagados por el déficit del flujo de caja (tasa activa) e IMO es la inversión máxima de obra (máximo déficit acumulado).
 - TAT = TPA + REA + TEA. RC = PTV / IMO (revolvencia). UAE = TAT / RC. GND = SGND / CD. UAI = UAE + GND. UC = UAI / (1 − ISR).
-- FSC = (1 + CO + CC + CI + F + CODIA + FON) × (1 + UC). Se itera 4 veces y el FSC final es el promedio de las iteraciones 3 y 4.
+- FSC = (1 + CO + CC + CI + F + CODIA + FON) × (1 + UC). Se itera 4 veces; el FSC aplicado (FSC_APLICADO) es el promedio de las iteraciones 3 y 4 y PTV = CD × FSC aplicado. Con él se recalcula el flujo final, del que resulta FSC_RECALCULO, que no se usa para el PTV.
 - PCM: Precio Comercial de Mercado; DM = PCM − PTV.
 - El ITBIS no forma parte del FSC; se analiza por escenarios fiscales.
 

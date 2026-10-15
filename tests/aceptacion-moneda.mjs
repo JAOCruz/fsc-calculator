@@ -61,7 +61,10 @@ const newDock = await dock(B.page);
 await B.page.screenshot({ path: path.join(outDir, '3_corregida_moneda_base.png') });
 const ptv = original.final?.PTV;
 const ptvTxt = ptv != null ? ptv.toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null;
-check('Mismos resultados de cálculo que la versión anterior', numbers(oldDock) === numbers(newDock));
+// Resultados del cálculo (PTV, UC, F, RC, IMO, PCM, DM). Se omiten el indicador y la
+// etiqueta del factor, que ahora muestran el FSC aplicado en vez del recálculo final.
+const results = (s) => numbers(s.replace(/^.*?(PRECIO TÉCNICO DE VENTA|TECHNICAL SALE PRICE)/i, '').replace(/CD × [\d.]+[^A-ZÁÉÍÓÚ]*/, ''));
+check('Mismos resultados de cálculo que la versión anterior', results(oldDock) === results(newDock), results(newDock).slice(0, 60));
 check(`Importes identificados en ${sym} sin convertir`, ptvTxt && newDock.includes(`${sym} ${ptvTxt}`), ptvTxt ? `PTV ${sym} ${ptvTxt}` : '');
 check(`Ningún monto del panel aparece en la otra moneda`, !newDock.includes(base === 'USD' ? 'RD$' : 'US$'));
 
@@ -128,8 +131,8 @@ await D.page.click(`[role=dialog] button:has-text("${sym}")`);
 await D.page.waitForTimeout(500);
 // Escribir un monto en la otra moneda lo guarda convertido a la moneda base.
 const cdBox = D.page.locator('#proyecto input[inputmode=decimal]').first();
-const cdField = cdBox.locator('xpath=ancestor::div[2]');
-await cdField.locator(`button:text-is("${other}")`).first().click();
+await D.page.click(`header button:text-is("${other}")`);
+await D.page.waitForTimeout(400);
 // Como un usuario: clic, esperar a que el campo se prepare y escribir.
 await cdBox.click();
 await D.page.waitForTimeout(300);
@@ -141,6 +144,36 @@ const cdStored = await D.page.evaluate(() => JSON.parse(localStorage.getItem('fs
 const expectCD = base === 'USD' ? 1 : rate * rate;
 check(`Escribir en ${other} guarda el valor en la moneda base`, Math.abs(cdStored - expectCD) < 1e-9, `${other} ${rate} → ${cdStored} ${base}`);
 await D.ctx.close();
+
+// Presentación coherente (observaciones del 9 de octubre).
+const E = await open(newUrl);
+await importFile(E.page, caseFile);
+if (await dialog(E.page).isVisible()) { await E.page.click(`[role=dialog] button:has-text("${sym}")`); await E.page.waitForTimeout(600); }
+const fmt2 = (v) => v.toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const cdShown = await E.page.locator('#proyecto input[inputmode=decimal]').first().inputValue();
+check('El CD del caso se muestra tal como está en el archivo', cdShown === fmt2(original.params.CD), `${sym} ${cdShown}`);
+const body = async () => (await E.page.locator('.shell').innerText()).replace(/\s+/g, ' ');
+// Se omite la definición de la tasa ("RD$ por cada US$ 1"), que no es un importe.
+const otherAmounts = (txt) => (txt.replace(/(por cada|por|per) US\$ 1\b/g, '').match(new RegExp(other.replace('$', '\\$') + ' ?-?[\\d]', 'g')) || []).length;
+check(`Con la vista en ${sym}, ningún importe aparece en ${other} (campos, tablas, gráficos, ITBIS)`, otherAmounts(await body()) === 0, `${otherAmounts(await body())} importes en ${other}`);
+await E.page.click(`header button:text-is("${other}")`);
+await E.page.waitForTimeout(500);
+const notice = await E.page.locator('[role=status]').innerText().catch(() => '');
+check(`Ver en ${other} muestra un aviso explícito de conversión`, /equivalencias/.test(notice), notice.slice(0, 80));
+const dockConv = (await dock(E.page));
+check(`Con la vista en ${other}, el panel no mezcla monedas`, !dockConv.includes(sym + ' '));
+await E.page.click(`header button:text-is("${sym}")`);
+await E.page.waitForTimeout(400);
+const fscApplied = original.final?.fscInput;
+const dk = await dock(E.page);
+if (fscApplied) check('El PTV se presenta como CD × FSC aplicado (promedio iter. 3 y 4)', dk.includes(`CD × ${fscApplied.toFixed(6)}`), `CD × ${fscApplied.toFixed(6)}`);
+// Un valor importado fuera de la escala del control se conserva al tocar el campo.
+const ccBox = E.page.locator('#costos input.num').nth(1);
+const ccShown = await ccBox.inputValue();
+await ccBox.click(); await E.page.waitForTimeout(300); await E.page.keyboard.press('Tab'); await E.page.waitForTimeout(400);
+const ccStored = await E.page.evaluate(() => JSON.parse(localStorage.getItem('fsc-current-params')).CC);
+check('Un porcentaje fuera de la escala del control se muestra y se conserva', ccStored === original.params.CC, `CC ${ccShown} → ${ccStored}`);
+await E.ctx.close();
 await browser.close();
 
 const shaAfter = sha(caseFile);

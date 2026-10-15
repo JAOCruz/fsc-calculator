@@ -14,7 +14,7 @@ export function WaterfallFSC({ final }) {
     { key: "CODIA",label: "CODIA",           v: final.FICOD, delta: final.FICOD - final.FIF, color: "#8a8276" },
     { key: "FON",  label: t("F. Pensiones"),    v: final.FIFON, delta: final.FIFON - final.FICOD, color: "#8a8276" },
     { key: "UC",   label: t("Utilidad UC"),     v: final.FIU,   delta: final.FIU - final.FIFON, color: "var(--accent)" },
-    { key: "FSC",  label: "FSC",             v: final.FSC,   delta: 0, color: "var(--accent)", isFinal: true },
+    { key: "FSC",  label: t("FSC recálculo"), v: final.FSC,   delta: 0, color: "var(--accent)", isFinal: true },
   ];
   const maxV = Math.max(...steps.map((s) => s.v));
   const yScale = (v) => (v / (maxV * 1.05)) * 100; // percent of height
@@ -30,10 +30,6 @@ export function WaterfallFSC({ final }) {
           borderTop: "1px dashed var(--rule-strong)",
           pointerEvents: "none",
         }} />
-        <div style={{
-          position: "absolute", right: 4, top: 0,
-          fontSize: 10, color: "var(--ink-4)", fontFamily: "var(--font-mono)",
-        }}>{fmtFactor(maxV * 1.05)}</div>
 
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="182" style={{ display: "block", overflow: "visible" }}>
           {steps.map((s, i) => {
