@@ -167,6 +167,23 @@ await E.page.waitForTimeout(400);
 const fscApplied = original.final?.fscInput;
 const dk = await dock(E.page);
 if (fscApplied) check('El PTV se presenta como CD × FSC aplicado (promedio iter. 3 y 4)', dk.includes(`CD × ${fscApplied.toFixed(6)}`), `CD × ${fscApplied.toFixed(6)}`);
+// El arco del indicador del FSC queda dentro de su escala y termina en el valor mostrado.
+const gauge = await E.page.evaluate(() => {
+  const svg = [...document.querySelectorAll('svg')].find((s) => [...s.querySelectorAll('text')].some((t) => t.textContent === 'FSC') && s.querySelectorAll('path').length === 2);
+  if (!svg) return null;
+  const [bg, fill] = [...svg.querySelectorAll('path')];
+  const a = bg.getBBox(), b = fill.getBBox();
+  const end = fill.getPointAtLength(fill.getTotalLength());
+  const shown = parseFloat([...svg.querySelectorAll('text')].find((t) => /^\d+\.\d{4}$/.test(t.textContent))?.textContent);
+  const inside = b.x >= a.x - 0.5 && b.y >= a.y - 0.5 && b.x + b.width <= a.x + a.width + 0.5 && b.y + b.height <= a.y + a.height + 0.5;
+  return { inside, shown, end: { x: end.x, y: end.y } };
+});
+if (gauge) {
+  const pct = (Math.min(1.8, Math.max(1, gauge.shown)) - 1) / 0.8;
+  const ang = Math.PI + pct * Math.PI;
+  const endOk = Math.hypot(gauge.end.x - (100 + 80 * Math.cos(ang)), gauge.end.y - (100 + 80 * Math.sin(ang))) < 0.5;
+  check('El arco del indicador del FSC queda dentro de la escala y marca el valor', gauge.inside && endOk, `FSC ${gauge.shown}`);
+} else check('El arco del indicador del FSC queda dentro de la escala y marca el valor', false, 'indicador no encontrado');
 // Un valor importado fuera de la escala del control se conserva al tocar el campo.
 const ccBox = E.page.locator('#costos input.num').nth(1);
 const ccShown = await ccBox.inputValue();

@@ -262,11 +262,12 @@ export function FSCGauge({ value }) {
   const endAngle = 2 * Math.PI;     // 360deg
   const angle = startAngle + pct * (endAngle - startAngle);
   const arc = (a) => `${cx + r * Math.cos(a)} ${cy + r * Math.sin(a)}`;
-  const largeArc = pct > 0.5 ? 1 : 0;
+  // The gauge spans at most 180°, so the fill is never the large arc.
+  const largeArc = 0;
   const bgArc = `M ${arc(startAngle)} A ${r} ${r} 0 1 1 ${arc(endAngle)}`;
   const fillArc = `M ${arc(startAngle)} A ${r} ${r} 0 ${largeArc} 1 ${arc(angle)}`;
   return (
-    <svg viewBox="0 0 200 130" width="100%" height="120" style={{ display: "block" }}>
+    <svg viewBox="0 -10 200 140" width="100%" height="120" style={{ display: "block" }}>
       <path d={bgArc} stroke="var(--rule)" strokeWidth="10" fill="none" strokeLinecap="round" />
       <path d={fillArc} stroke="var(--accent)" strokeWidth="10" fill="none" strokeLinecap="round" />
       {/* tick marks */}
