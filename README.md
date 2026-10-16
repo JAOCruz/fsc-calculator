@@ -13,7 +13,7 @@ Titular: Nayib Wessin. Ver el documento de titularidad que acompaña esta entreg
 | `src/calc.js` | Motor de cálculo del FSC: 4 iteraciones y promedio de las dos últimas, flujo de caja mensual, valores por defecto y ejemplos precargados. |
 | `src/App.jsx` | Estado de la aplicación, navegación de pasos, escenarios guardados, exportación e importación de casos, confirmación de la moneda base. |
 | `src/sections.jsx` | Los 10 pasos de captura de datos. |
-| `src/ui.jsx` | Componentes de interfaz: campos de monto con selector de moneda, deslizadores y controles. |
+| `src/ui.jsx` | Componentes de interfaz: campos de monto (en la moneda que se está viendo), deslizadores y controles. |
 | `src/viz.jsx` | Gráficos SVG: cascada, flujo de caja, indicador del FSC y convergencia. |
 | `src/prefs.jsx` | Idioma (es/en), moneda de visualización y conversión desde la moneda base del caso. |
 | `src/i18n-en.js` | Textos en inglés. |
@@ -53,7 +53,7 @@ Las claves nunca se guardan en el código.
 ## Casos y moneda
 
 - Los casos se guardan en el navegador de cada usuario y se pueden exportar e importar como JSON desde el panel de resultados ("Exportar caso" / "Importar caso"). Al cambiar la dirección de la página, los casos guardados en el navegador no se trasladan: conviene exportarlos antes.
-- Cada caso tiene una **moneda base** (`params.MONEDA_BASE`: `DOP` o `USD`). Los importes se guardan y se calculan en esa moneda; el selector RD$/US$ solo convierte para visualizar, con la tasa de cambio del caso (`params.TASA_CAMBIO`, RD$ por US$ 1).
+- Cada caso tiene una **moneda base** (`params.MONEDA_BASE`: `DOP` o `USD`). Los importes se guardan y se calculan en esa moneda, y todo el caso se muestra en ella. El selector RD$/US$ del encabezado solo convierte para visualizar, con la tasa de cambio del caso (`params.TASA_CAMBIO`, RD$ por US$ 1), y mientras está activo muestra un aviso de conversión. Los campos de monto no tienen selector propio.
 - Al abrir un JSON o un caso guardado sin moneda base, la aplicación pide confirmarla y no convierte ningún valor.
 
 ## Pruebas
