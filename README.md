@@ -65,6 +65,9 @@ node tests/regresion-motor.mjs b422083 caso.json       # uno o más casos export
 
 # Aceptación de la moneda base en el navegador (requiere Playwright: npm i -D playwright && npx playwright install chromium).
 node tests/aceptacion-moneda.mjs <url-anterior> <url-actual> caso.json salida/ USD
+
+# Lectura de montos en formato español y US (no necesita argumentos).
+node tests/parseo-montos.mjs
 ```
 
 Los casos de prueba se leen sin modificarse y se informa su huella SHA-256.

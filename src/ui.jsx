@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { parseAmount } from './parseAmount.js';
 import { usePrefs, useT, makeMoney, CURRENCIES, localeFor, toCurrency, fromCurrency } from './prefs.jsx';
 
 // Calculate current % position of a slider for the gradient fill
@@ -128,10 +129,7 @@ export function MoneyInput({ label, value, onChange, hint, big }) {
   const shown = toCurrency(value || 0, unit, rate, base);
   const original = makeMoney(base, rate, lang, base);
 
-  const parse = (raw) => {
-    const n = parseFloat(String(raw).replace(/[^\d.\-]/g, ""));
-    return isNaN(n) ? null : Math.max(0, n);
-  };
+  const parse = parseAmount;
   const handleChange = (raw) => {
     setTxt(raw);
     const n = parse(raw);
