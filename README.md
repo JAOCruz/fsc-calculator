@@ -22,7 +22,7 @@ Titular: Nayib Wessin. Ver el documento de titularidad que acompaña esta entreg
 | `public/fsc-assistant.js` | Widget del asistente de IA. |
 | `netlify/functions/ask-ai.mjs` | Función del asistente de IA (Gemini, con respaldo opcional de Azure OpenAI). |
 | `netlify.toml` | Configuración de publicación en Netlify. |
-| `tests/` | Pruebas de regresión del motor y de aceptación de la moneda base. |
+| `tests/` | Pruebas de regresión del motor, de lectura de montos y de aceptación (moneda base y coma decimal). |
 
 ## Uso local
 
@@ -55,6 +55,9 @@ Las claves nunca se guardan en el código.
 - Los casos se guardan en el navegador de cada usuario y se pueden exportar e importar como JSON desde el panel de resultados ("Exportar caso" / "Importar caso"). Al cambiar la dirección de la página, los casos guardados en el navegador no se trasladan: conviene exportarlos antes.
 - Cada caso tiene una **moneda base** (`params.MONEDA_BASE`: `DOP` o `USD`). Los importes se guardan y se calculan en esa moneda, y todo el caso se muestra en ella. El selector RD$/US$ del encabezado solo convierte para visualizar, con la tasa de cambio del caso (`params.TASA_CAMBIO`, RD$ por US$ 1), y mientras está activo muestra un aviso de conversión. Los campos de monto no tienen selector propio.
 - Al abrir un JSON o un caso guardado sin moneda base, la aplicación pide confirmarla y no convierte ningún valor.
+- **Campos de monto.** Se pueden escribir en formato español (`1.666,67`, `1666,67`) o US (`1,666.67`, `1666.67`). Reglas: si aparecen punto y coma, el último es el decimal; un separador repetido (`1.234.567`) es de miles; un separador que aparece una vez es decimal. Mientras se escribe, debajo del campo se muestra cómo se leerá ("Se toma como …"). El valor se aplica al salir del campo o con Enter; Esc lo descarta.
+- **Entradas ambiguas.** Un solo separador con 1 a 3 cifras delante (sin empezar en 0) y exactamente 3 detrás, como `1,234`, `1.234` o `12.500`, puede ser de miles o decimal. La aplicación no elige: pregunta "Miles" o "Decimal" y, hasta que se elija, el valor guardado no cambia.
+- Enfocar un campo y salir sin editarlo no reescribe el valor guardado.
 
 ## Pruebas
 
@@ -68,6 +71,10 @@ node tests/aceptacion-moneda.mjs <url-anterior> <url-actual> caso.json salida/ U
 
 # Lectura de montos en formato español y US (no necesita argumentos).
 node tests/parseo-montos.mjs
+
+# Aceptación de la coma decimal en el navegador: foco sin edición, formatos, entradas ambiguas,
+# exportar e importar (requiere Playwright).
+node tests/aceptacion-coma-decimal.mjs <url> caso.json salida/ USD
 ```
 
 Los casos de prueba se leen sin modificarse y se informa su huella SHA-256.

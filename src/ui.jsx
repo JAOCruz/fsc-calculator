@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { parseAmount } from './parseAmount.js';
+import { readAmount } from './parseAmount.js';
 import { usePrefs, useT, makeMoney, CURRENCIES, localeFor, toCurrency, fromCurrency } from './prefs.jsx';
 
 // Calculate current % position of a slider for the gradient fill
@@ -125,16 +125,38 @@ export function MoneyInput({ label, value, onChange, hint, big }) {
   const t = useT();
   const { currency: unit, rate, lang, base } = usePrefs();
   const [txt, setTxt] = useState(null);
+  // Entrada ambigua ("1,234" / "1.234") pendiente de confirmar: mientras no se
+  // elija una lectura, el valor guardado no cambia.
+  const [pending, setPending] = useState(null);
   const locale = localeFor(lang);
   const shown = toCurrency(value || 0, unit, rate, base);
   const original = makeMoney(base, rate, lang, base);
+  const fmt = (n, maxDec = 2) => `${CURRENCIES[unit].sym} ${n.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: maxDec })}`;
 
-  const parse = parseAmount;
+  // El valor se aplica al salir del campo o con Enter, no en cada tecla: así una
+  // entrada a medio escribir ("1,23" camino de "1,234") nunca se guarda.
+  const startRef = useRef(null);
+  const cancelRef = useRef(false);
   const handleChange = (raw) => {
     setTxt(raw);
-    const n = parse(raw);
-    onChange(n === null ? 0 : fromCurrency(n, unit, rate, base));
+    const r = readAmount(raw);
+    setPending(r.ambiguous ? r : null);
   };
+  const commit = () => {
+    if (cancelRef.current) { cancelRef.current = false; setPending(null); setTxt(null); return; }
+    if (txt === null || pending) return;           // ambigua: se espera la confirmación
+    if (txt === startRef.current) { setTxt(null); return; } // sin editar: no se reescribe
+    const r = readAmount(txt);
+    onChange(r.value === null ? 0 : fromCurrency(r.value, unit, rate, base));
+    setTxt(null);
+  };
+  const choose = (n) => {
+    onChange(fromCurrency(n, unit, rate, base));
+    setPending(null);
+    setTxt(null);
+  };
+  // Lectura que se aplicará a lo escrito (regla visible mientras se edita).
+  const reading = txt !== null && !pending ? readAmount(txt).value : null;
 
   return (
     <div style={{ marginBottom: 18 }}>
@@ -148,16 +170,25 @@ export function MoneyInput({ label, value, onChange, hint, big }) {
           color: "var(--ink-3)", pointerEvents: "none",
         }}>{CURRENCIES[unit].sym}</span>
         <input
+          data-money-input=""
           type="text"
           inputMode="decimal"
           value={txt !== null ? txt : shown.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          onFocus={(e) => { setTxt(String(+shown.toFixed(2))); setTimeout(() => e.target.select(), 0); }}
+          onFocus={(e) => {
+            if (!pending) { const start = String(+shown.toFixed(2)); startRef.current = start; setTxt(start); }
+            setTimeout(() => e.target.select(), 0);
+          }}
           onChange={(e) => handleChange(e.target.value)}
-          onBlur={() => setTxt(null)}
-          onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.target.blur();
+            if (e.key === "Escape") { cancelRef.current = true; e.target.blur(); }
+          }}
+          aria-invalid={pending ? true : undefined}
           className="num"
           style={{
             width: "100%",
+            ...(pending ? { borderColor: "var(--accent, #c2410c)", boxShadow: "0 0 0 1px var(--accent, #c2410c)" } : {}),
             fontSize: big ? 22 : 14,
             fontWeight: big ? 500 : 400,
             padding: big ? "14px 12px 14px 56px" : "8px 10px 8px 44px",
@@ -165,6 +196,43 @@ export function MoneyInput({ label, value, onChange, hint, big }) {
           }}
         />
       </div>
+      {reading !== null && (
+        <div className="num" data-money-reading="" style={{ fontSize: 12, color: "var(--ink-2)", marginTop: 4 }}>
+          {t("Se toma como {v}", { v: fmt(reading, 6) })}
+          <span style={{ color: "var(--ink-4)" }}> · {t("decimales con coma o punto; si hay los dos, el último es el decimal")}</span>
+        </div>
+      )}
+      {pending && (
+        <div role="alert" data-money-ambiguous="" style={{
+          marginTop: 6, padding: "10px 12px", fontSize: 12, lineHeight: 1.5,
+          color: "var(--ink)", background: "var(--bg-paper)",
+          border: "1px solid var(--accent, #c2410c)", borderRadius: 6,
+        }}>
+          <div style={{ marginBottom: 8 }}>
+            {t("«{txt}» se puede leer de dos formas. ¿Cuál quisiste escribir? El valor no cambia hasta que elijas.", { txt })}
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" data-choice="miles" className="num"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => choose(pending.asThousands)}
+              style={{ padding: "4px 10px", fontSize: 12, cursor: "pointer", borderRadius: 4, border: "1px solid var(--rule-strong)", background: "var(--card)", color: "var(--ink)" }}>
+              {t("Miles: {v}", { v: fmt(pending.asThousands) })}
+            </button>
+            <button type="button" data-choice="decimal" className="num"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => choose(pending.asDecimal)}
+              style={{ padding: "4px 10px", fontSize: 12, cursor: "pointer", borderRadius: 4, border: "1px solid var(--rule-strong)", background: "var(--card)", color: "var(--ink)" }}>
+              {t("Decimal: {v}", { v: fmt(pending.asDecimal, 3) })}
+            </button>
+            <button type="button" data-choice="cancelar"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { setPending(null); setTxt(null); }}
+              style={{ padding: "4px 10px", fontSize: 12, cursor: "pointer", borderRadius: 4, border: "1px solid transparent", background: "transparent", color: "var(--ink-3)" }}>
+              {t("Cancelar")}
+            </button>
+          </div>
+        </div>
+      )}
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>
         <span>{hint}</span>
         {unit !== base && (

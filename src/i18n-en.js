@@ -294,4 +294,10 @@ export const EN = {
   "El modelo corre 4 iteraciones de convergencia. El FSC aplicado es el promedio de las iteraciones 3 y 4; con él se calcula el PTV y se recalcula el flujo de caja final, del que resulta el FSC del recálculo final.": "The model runs 4 convergence iterations. The applied FSC is the average of iterations 3 and 4; it sets the PTV and the final cash flow is recalculated with it, which yields the FSC from the final recalculation.",
   "FSC recálculo": "FSC recalc.",
   "RD$ por cada US$ 1 · solo para ver equivalencias; no cambia importes ni los supuestos del caso": "RD$ per US$ 1 · only to view equivalents; doesn't change amounts or the case's assumptions",
+  "Se toma como {v}": "Read as {v}",
+  "decimales con coma o punto; si hay los dos, el último es el decimal": "decimals with comma or point; if both appear, the last one is the decimal",
+  "«{txt}» se puede leer de dos formas. ¿Cuál quisiste escribir? El valor no cambia hasta que elijas.": "“{txt}” can be read two ways. Which one did you mean? The value doesn't change until you choose.",
+  "Miles: {v}": "Thousands: {v}",
+  "Decimal: {v}": "Decimal: {v}",
+  "Cancelar": "Cancel",
 };
