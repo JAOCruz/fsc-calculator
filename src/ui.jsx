@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { readAmount } from './parseAmount.js';
+import { readAmount, readNumber } from './parseAmount.js';
 import { usePrefs, useT, makeMoney, CURRENCIES, localeFor, toCurrency, fromCurrency } from './prefs.jsx';
 
 // Calculate current % position of a slider for the gradient fill
@@ -15,15 +15,15 @@ export function NumField({ value, min, max, scale = 1, onCommit, format, accent,
   const [txt, setTxt] = useState(null);
   const cancelRef = useRef(false);
   const startRef = useRef(null);
+  // Entrada mal formada rechazada: se avisa y se conserva el valor anterior.
+  const [rejected, setRejected] = useState(null);
   const commit = (raw) => {
     if (cancelRef.current) { cancelRef.current = false; setTxt(null); return; }
     // Si no se editó, no se reescribe: así no se redondea ni se recorta el valor guardado.
     if (String(raw) === startRef.current) { setTxt(null); return; }
-    let s = String(raw).trim().replace(/[^\d,.\-]/g, "");
-    if (s.includes(".") && s.includes(",")) s = s.replace(/,/g, "");
-    else if (s.includes(",")) s = s.replace(",", ".");
-    const n = parseFloat(s);
-    if (!isNaN(n)) {
+    const n = readNumber(raw);
+    if (Number.isNaN(n)) { setRejected(String(raw)); setTxt(null); return; }
+    if (n !== null) {
       let v = n / scale;
       if (min != null) v = Math.max(min, v);
       if (max != null) v = Math.min(max, v);
@@ -32,10 +32,13 @@ export function NumField({ value, min, max, scale = 1, onCommit, format, accent,
     setTxt(null);
   };
   return (
+    <span style={{ position: "relative", display: "inline-block" }}>
     <input
       type="text"
       inputMode="decimal"
       className="num"
+      data-num-field=""
+      aria-invalid={rejected !== null ? true : undefined}
       value={txt !== null ? txt : (format ? format(value) : value)}
       onFocus={(e) => {
         const start = String(+(value * scale).toFixed(6));
@@ -43,7 +46,7 @@ export function NumField({ value, min, max, scale = 1, onCommit, format, accent,
         setTxt(start);
         setTimeout(() => e.target.select(), 0);
       }}
-      onChange={(e) => setTxt(e.target.value)}
+      onChange={(e) => { setTxt(e.target.value); setRejected(null); }}
       onBlur={(e) => commit(e.target.value)}
       onKeyDown={(e) => {
         if (e.key === "Enter") e.target.blur();
@@ -55,10 +58,21 @@ export function NumField({ value, min, max, scale = 1, onCommit, format, accent,
         fontFamily: "var(--font-mono)",
         color: color || (accent ? "var(--accent)" : "var(--ink)"),
         background: "var(--bg-paper)",
-        border: "1px solid var(--rule)",
+        border: rejected !== null ? "1px solid var(--accent, #c2410c)" : "1px solid var(--rule)",
         borderRadius: 6, padding: "2px 6px",
       }}
     />
+    {rejected !== null && (
+      <span role="alert" data-num-rejected="" onClick={() => setRejected(null)} style={{
+        position: "absolute", right: 0, top: "100%", marginTop: 4, zIndex: 5,
+        width: 220, padding: "6px 8px", fontSize: 11, lineHeight: 1.4, textAlign: "left",
+        color: "var(--ink)", background: "var(--bg-paper)", cursor: "pointer",
+        border: "1px solid var(--accent, #c2410c)", borderRadius: 6,
+      }}>
+        {t("«{txt}» no es un número válido y no se aplicó. Se conserva el valor anterior.", { txt: rejected })}
+      </span>
+    )}
+    </span>
   );
 }
 
@@ -128,6 +142,9 @@ export function MoneyInput({ label, value, onChange, hint, big }) {
   // Entrada ambigua ("1,234" / "1.234") pendiente de confirmar: mientras no se
   // elija una lectura, el valor guardado no cambia.
   const [pending, setPending] = useState(null);
+  // Entrada mal formada ("1,2,3", "12abc34") rechazada al salir del campo: se
+  // avisa y se conserva el valor anterior.
+  const [rejected, setRejected] = useState(null);
   const locale = localeFor(lang);
   const shown = toCurrency(value || 0, unit, rate, base);
   const original = makeMoney(base, rate, lang, base);
@@ -139,6 +156,7 @@ export function MoneyInput({ label, value, onChange, hint, big }) {
   const cancelRef = useRef(false);
   const handleChange = (raw) => {
     setTxt(raw);
+    setRejected(null);
     const r = readAmount(raw);
     setPending(r.ambiguous ? r : null);
   };
@@ -147,6 +165,7 @@ export function MoneyInput({ label, value, onChange, hint, big }) {
     if (txt === null || pending) return;           // ambigua: se espera la confirmación
     if (txt === startRef.current) { setTxt(null); return; } // sin editar: no se reescribe
     const r = readAmount(txt);
+    if (r.invalid) { setRejected(txt); setTxt(null); return; } // mal formada: no cambia nada
     onChange(r.value === null ? 0 : fromCurrency(r.value, unit, rate, base));
     setTxt(null);
   };
@@ -156,7 +175,9 @@ export function MoneyInput({ label, value, onChange, hint, big }) {
     setTxt(null);
   };
   // Lectura que se aplicará a lo escrito (regla visible mientras se edita).
-  const reading = txt !== null && !pending ? readAmount(txt).value : null;
+  const current = txt !== null && !pending ? readAmount(txt) : null;
+  const reading = current ? current.value : null;
+  const invalidNow = !!(current && current.invalid);
 
   return (
     <div style={{ marginBottom: 18 }}>
@@ -182,13 +203,13 @@ export function MoneyInput({ label, value, onChange, hint, big }) {
           onBlur={commit}
           onKeyDown={(e) => {
             if (e.key === "Enter") e.target.blur();
-            if (e.key === "Escape") { cancelRef.current = true; e.target.blur(); }
+            if (e.key === "Escape") { cancelRef.current = true; setRejected(null); e.target.blur(); }
           }}
-          aria-invalid={pending ? true : undefined}
+          aria-invalid={pending || invalidNow || rejected !== null ? true : undefined}
           className="num"
           style={{
             width: "100%",
-            ...(pending ? { borderColor: "var(--accent, #c2410c)", boxShadow: "0 0 0 1px var(--accent, #c2410c)" } : {}),
+            ...(pending || invalidNow || rejected !== null ? { borderColor: "var(--accent, #c2410c)", boxShadow: "0 0 0 1px var(--accent, #c2410c)" } : {}),
             fontSize: big ? 22 : 14,
             fontWeight: big ? 500 : 400,
             padding: big ? "14px 12px 14px 56px" : "8px 10px 8px 44px",
@@ -200,6 +221,26 @@ export function MoneyInput({ label, value, onChange, hint, big }) {
         <div className="num" data-money-reading="" style={{ fontSize: 12, color: "var(--ink-2)", marginTop: 4 }}>
           {t("Se toma como {v}", { v: fmt(reading, 6) })}
           <span style={{ color: "var(--ink-4)" }}> · {t("decimales con coma o punto; si hay los dos, el último es el decimal")}</span>
+        </div>
+      )}
+      {invalidNow && (
+        <div className="num" data-money-invalid="" style={{ fontSize: 12, color: "var(--accent, #c2410c)", marginTop: 4 }}>
+          {t("«{txt}» no es un monto válido. Si sales del campo así, se conserva el valor anterior.", { txt })}
+        </div>
+      )}
+      {rejected !== null && (
+        <div role="alert" data-money-rejected="" style={{
+          marginTop: 6, padding: "8px 12px", fontSize: 12, lineHeight: 1.5,
+          color: "var(--ink)", background: "var(--bg-paper)",
+          border: "1px solid var(--accent, #c2410c)", borderRadius: 6,
+        }}>
+          {t("«{txt}» no es un monto válido y no se aplicó. Se conserva el valor anterior: {v}.", { txt: rejected, v: fmt(shown, 6) })}
+          <span style={{ color: "var(--ink-3)" }}> {t("Escribe solo cifras, con coma o punto como separador.")}</span>
+          <button type="button" data-choice="entendido"
+            onClick={() => setRejected(null)}
+            style={{ marginLeft: 8, padding: "2px 8px", fontSize: 12, cursor: "pointer", borderRadius: 4, border: "1px solid var(--rule-strong)", background: "var(--card)", color: "var(--ink)" }}>
+            {t("Entendido")}
+          </button>
         </div>
       )}
       {pending && (

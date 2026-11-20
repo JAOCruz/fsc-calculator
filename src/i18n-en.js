@@ -300,4 +300,9 @@ export const EN = {
   "Miles: {v}": "Thousands: {v}",
   "Decimal: {v}": "Decimal: {v}",
   "Cancelar": "Cancel",
+  "«{txt}» no es un monto válido. Si sales del campo así, se conserva el valor anterior.": "“{txt}” is not a valid amount. If you leave the field like this, the previous value is kept.",
+  "«{txt}» no es un monto válido y no se aplicó. Se conserva el valor anterior: {v}.": "“{txt}” is not a valid amount and was not applied. The previous value is kept: {v}.",
+  "Escribe solo cifras, con coma o punto como separador.": "Use digits only, with a comma or a dot as separator.",
+  "Entendido": "OK",
+  "«{txt}» no es un número válido y no se aplicó. Se conserva el valor anterior.": "“{txt}” is not a valid number and was not applied. The previous value is kept.",
 };

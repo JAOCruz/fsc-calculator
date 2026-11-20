@@ -57,6 +57,8 @@ Las claves nunca se guardan en el código.
 - Al abrir un JSON o un caso guardado sin moneda base, la aplicación pide confirmarla y no convierte ningún valor.
 - **Campos de monto.** Se pueden escribir en formato español (`1.666,67`, `1666,67`) o US (`1,666.67`, `1666.67`). Reglas: si aparecen punto y coma, el último es el decimal; un separador repetido (`1.234.567`) es de miles; un separador que aparece una vez es decimal. Mientras se escribe, debajo del campo se muestra cómo se leerá ("Se toma como …"). El valor se aplica al salir del campo o con Enter; Esc lo descarta.
 - **Entradas ambiguas.** Un solo separador con 1 a 3 cifras delante (sin empezar en 0) y exactamente 3 detrás, como `1,234`, `1.234` o `12.500`, puede ser de miles o decimal. La aplicación no elige: pregunta "Miles" o "Decimal" y, hasta que se elija, el valor guardado no cambia.
+- **Entradas mal formadas.** Solo se aceptan cifras, un separador decimal, grupos de miles de 3 cifras con el mismo separador (`.`, `,` o espacio) y, opcionalmente, el símbolo de moneda (`RD$`, `US$`, `$`, `DOP`, `USD`). Cualquier otra cosa, como `1,2,3`, `1.23.45`, `12abc34` o `1,234.5.6`, no se convierte en ningún importe: mientras se escribe, el campo avisa que no es un monto válido y, al salir, la rechaza con un aviso y conserva el valor anterior. Lo mismo vale para los campos numéricos de porcentajes y factores.
+- Dejar un campo de monto vacío lo pone en 0.
 - Enfocar un campo y salir sin editarlo no reescribe el valor guardado.
 
 ## Pruebas
@@ -69,11 +71,11 @@ node tests/regresion-motor.mjs b422083 caso.json       # uno o más casos export
 # Aceptación de la moneda base en el navegador (requiere Playwright: npm i -D playwright && npx playwright install chromium).
 node tests/aceptacion-moneda.mjs <url-anterior> <url-actual> caso.json salida/ USD
 
-# Lectura de montos en formato español y US (no necesita argumentos).
+# Lectura de montos en formato español y US, entradas ambiguas y mal formadas (no necesita argumentos).
 node tests/parseo-montos.mjs
 
 # Aceptación de la coma decimal en el navegador: foco sin edición, formatos, entradas ambiguas,
-# exportar e importar (requiere Playwright).
+# entradas mal formadas, exportar e importar (requiere Playwright).
 node tests/aceptacion-coma-decimal.mjs <url> caso.json salida/ USD
 ```
 
@@ -81,8 +83,10 @@ Los casos de prueba se leen sin modificarse y se informa su huella SHA-256.
 
 ## Historial
 
-El historial de cambios está en git (`git log`). Si recibiste esta entrega en ZIP, el archivo `fsc-calculator.bundle` contiene el repositorio completo con su historial:
+El historial de cambios está en git (`git log`). Si recibiste esta entrega en ZIP, el archivo `fsc-calculator.bundle` contiene el repositorio completo con su historial. Para recuperarlo, indica la rama `main`:
 
 ```bash
-git clone fsc-calculator.bundle fsc-calculator
+git clone -b main fsc-calculator.bundle fsc-calculator
 ```
+
+El historial disponible comienza el 25 de septiembre de 2026, cuando se recuperó el código de la versión publicada en Netlify. El prototipo del 17 de mayo de 2026 (`Calculator.zip`) se entrega por separado y no tiene historial de cambios. Entre esas fechas no se usó control de versiones: los cambios de ese período están contenidos en el código recuperado, pero no como versiones separadas.

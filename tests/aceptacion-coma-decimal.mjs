@@ -6,6 +6,10 @@
 //      confirmar si es de miles o decimal, y hasta entonces el valor no cambia;
 //   4. exportar y volver a importar conserva los importes;
 //   5. el archivo del caso no se modifica (huella SHA-256).
+// Y lo pedido el 19 de noviembre de 2026:
+//   6. las entradas mal formadas ("1,2,3", "1.23.45", "12abc34"...) se rechazan con
+//      un aviso y conservan el valor anterior, en los campos de monto y en los de
+//      porcentaje.
 //
 // Uso: node tests/aceptacion-coma-decimal.mjs <url> <caso.json> <carpeta-salida> [DOP|USD]
 // Requiere Playwright (PLAYWRIGHT_MODULE apunta a su index.mjs si no está instalado aquí).
@@ -112,6 +116,33 @@ check('"1.234" y elegir "decimal" guarda 1.234', (await cdStored()) === 1.234, `
 await typeIn(cd, '12.500', null);
 await page.keyboard.press('Escape'); await page.waitForTimeout(300);
 check('Esc descarta una entrada ambigua sin cambiar el valor', (await cdStored()) === 1.234 && !(await alert.isVisible()), `CD ${await cdStored()}`);
+
+// 6. Entradas mal formadas: aviso y valor anterior intacto.
+const rejectedBox = page.locator('[data-money-rejected]');
+for (const txt of ['1,2,3', '1.23.45', '12abc34', '1,234.5.6', 'abc', '12.']) {
+  const prev = await cdStored();
+  await typeIn(cd, txt, null);
+  const live = await page.locator('[data-money-invalid]').isVisible();
+  await page.keyboard.press('Enter'); await page.waitForTimeout(300);
+  const shownNow = await cd.inputValue();
+  const ok = live && (await rejectedBox.isVisible()) && (await cdStored()) === prev
+    && shownNow === prev.toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (txt === '1,2,3') await page.screenshot({ path: path.join(outDir, '3_entrada_rechazada.png'), clip: await page.locator('#proyecto').boundingBox() });
+  check(`"${txt}" se rechaza con aviso y conserva el valor anterior`, ok, `CD ${await cdStored()} · ${(await rejectedBox.innerText().catch(() => '')).replace(/\s+/g, ' ')}`);
+}
+await typeIn(cd, '1.500,25');
+check('Después de un rechazo, una entrada válida se aplica y el aviso desaparece', (await cdStored()) === 1500.25 && !(await rejectedBox.isVisible()), `CD ${await cdStored()}`);
+const sBad = await state(page);
+const nf = page.locator('[data-num-field]').first();
+const nfShown = await nf.inputValue();
+for (const txt of ['12abc34', '1,2,3']) {
+  await nf.click(); await page.waitForTimeout(200);
+  await page.keyboard.press('Meta+A'); await page.keyboard.type(txt, { delay: 30 });
+  await page.keyboard.press('Enter'); await page.waitForTimeout(300);
+  const sNow = await state(page);
+  const ok = same(sNow.params, sBad.params) && (await page.locator('[data-num-rejected]').first().isVisible()) && (await nf.inputValue()) === nfShown;
+  check(`Campo de porcentaje: "${txt}" se rechaza con aviso y conserva el valor`, ok, nfShown);
+}
 
 // 4. Exportar y volver a importar con importes escritos con coma decimal.
 await typeIn(cd, '62.445.312,95');
